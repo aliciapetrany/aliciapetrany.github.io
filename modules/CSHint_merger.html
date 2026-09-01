@@ -1,0 +1,195 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Count Merging &mdash; CSHint</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Cross-Species Integration" href="CSHint_integration.html" />
+    <link rel="prev" title="Preprocessing" href="CSHint_preprocess.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CSHint
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">API reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="OrthofinderWrapper.html">OrthoFinder wrapper</a></li>
+<li class="toctree-l2"><a class="reference internal" href="CSHint_preprocess.html">Preprocessing</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Count Merging</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#CSHint_merger.CSHint_merger"><code class="docutils literal notranslate"><span class="pre">CSHint_merger</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#CSHint_merger.CSHint_merger.__init__"><code class="docutils literal notranslate"><span class="pre">CSHint_merger.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#CSHint_merger.CSHint_merger.run"><code class="docutils literal notranslate"><span class="pre">CSHint_merger.run()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="CSHint_integration.html">Cross-Species Integration</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../Tutorials.html">Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CSHint</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api.html">API reference</a></li>
+      <li class="breadcrumb-item active">Count Merging</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/modules/CSHint_merger.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-CSHint_merger">
+<span id="count-merging"></span><h1>Count Merging<a class="headerlink" href="#module-CSHint_merger" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="CSHint_merger.CSHint_merger">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">CSHint_merger.</span></span><span class="sig-name descname"><span class="pre">CSHint_merger</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">orthofinder_resultdir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scrna_dirs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotation_obs_col</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ncores</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counts_layer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalise</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale_factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10000.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log1p</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalise_by</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'matrix'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer_means_on</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'normalised'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/CSHint_merger.html#CSHint_merger"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CSHint_merger.CSHint_merger" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Merge per-species scRNA-seq into a joint orthogroup-layer matrix.</p>
+<p>Writes BOTH matrix.mtx (raw integer counts) and matrix_normalised.mtx
+(depth-scaled, optionally log1p).</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="CSHint_merger.CSHint_merger.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">orthofinder_resultdir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scrna_dirs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">annotation_obs_col</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ncores</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">16</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counts_layer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalise</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scale_factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10000.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log1p</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">normalise_by</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'matrix'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer_means_on</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'normalised'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/CSHint_merger.html#CSHint_merger.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CSHint_merger.CSHint_merger.__init__" title="Link to this definition"></a></dt>
+<dd><p>Initialise a cross-species merge run.</p>
+<p>Validates the enumerated options and sets up the empty containers that
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">load()</span></code> and the merge steps populate.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>orthofinder_resultdir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Directory holding the OrthoFinder results used for
+orthogroup assignment.</p></li>
+<li><p><strong>scrna_dirs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – Input scRNA-seq paths keyed by species. The keys define the
+species set for the run.</p></li>
+<li><p><strong>output_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Destination for the merged matrix and its metadata.</p></li>
+<li><p><strong>annotation_obs_col</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column in <code class="docutils literal notranslate"><span class="pre">adata.obs</span></code> holding the cell type labels.</p></li>
+<li><p><strong>ncores</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Worker processes for the parallelised steps.</p></li>
+<li><p><strong>counts_layer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><em>None</em>) – Layer holding raw counts, e.g. <code class="docutils literal notranslate"><span class="pre">&quot;counts&quot;</span></code>. <code class="docutils literal notranslate"><span class="pre">None</span></code> uses
+<code class="docutils literal notranslate"><span class="pre">adata.X</span></code>. Set this whenever <code class="docutils literal notranslate"><span class="pre">adata.X</span></code> has been normalised in place —
+otherwise <code class="docutils literal notranslate"><span class="pre">matrix.mtx</span></code> will contain normalised values under a raw name, and
+every downstream integer check will pass while the NB offset double-corrects
+for depth.</p></li>
+<li><p><strong>normalise</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to depth-scale counts during the merge.</p></li>
+<li><p><strong>scale_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Target sum per cell for depth scaling.</p></li>
+<li><p><strong>log1p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to apply <code class="docutils literal notranslate"><span class="pre">log1p</span></code> after scaling.</p></li>
+<li><p><strong>normalise_by</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Denominator for depth scaling. <code class="docutils literal notranslate"><span class="pre">&quot;matrix&quot;</span></code> uses the joint
+matrix column sums, which is what the DE offset uses, so the two stay
+consistent. <code class="docutils literal notranslate"><span class="pre">&quot;genome&quot;</span></code> uses each cell’s total across all genes in its
+original object, which is the true library size but includes genes dropped
+during orthogroup assignment.</p></li>
+<li><p><strong>layer_means_on</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Basis for the cell-type mean profiles that drive layer
+assignment, either <code class="docutils literal notranslate"><span class="pre">&quot;normalised&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;raw&quot;</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">normalise_by</span></code> or <code class="docutils literal notranslate"><span class="pre">layer_means_on</span></code> is not one of its
+permitted values.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="CSHint_merger.CSHint_merger.run">
+<span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/CSHint_merger.html#CSHint_merger.run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CSHint_merger.CSHint_merger.run" title="Link to this definition"></a></dt>
+<dd><p>Execute the full merge pipeline end to end.</p>
+<p>Loads the OrthoFinder orthogroups and per-species expression data, computes
+anchor cell-type mean profiles, assigns genes to layers by greedy expression
+similarity, fills the joint matrix, optionally normalises it, and writes the
+result to <code class="docutils literal notranslate"><span class="pre">self.output_dir</span></code>.</p>
+<p>Normalisation runs only when <code class="docutils literal notranslate"><span class="pre">self.normalise</span></code> is set; the parameters governing
+each step are those fixed at construction.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>. Output is written to disk and to the instance attributes
+populated along the way.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="CSHint_preprocess.html" class="btn btn-neutral float-left" title="Preprocessing" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="CSHint_integration.html" class="btn btn-neutral float-right" title="Cross-Species Integration" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Alicia Petrany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

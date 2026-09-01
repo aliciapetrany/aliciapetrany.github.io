@@ -1,0 +1,8 @@
+Cross-Species Integration
+==================
+
+.. automodule:: CSHint_integration
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :special-members: __init__

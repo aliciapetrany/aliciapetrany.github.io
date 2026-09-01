@@ -1,0 +1,590 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CSHint_preprocess &mdash; CSHint</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CSHint
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Tutorials.html">Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CSHint</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Module code</a></li>
+      <li class="breadcrumb-item active">CSHint_preprocess</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for CSHint_preprocess</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">csv</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">gzip</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scanpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sc</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">Bio</span><span class="w"> </span><span class="kn">import</span> <span class="n">SeqIO</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">urllib.parse</span><span class="w"> </span><span class="kn">import</span> <span class="n">unquote</span>
+
+<div class="viewcode-block" id="CSHint_preprocess">
+<a class="viewcode-back" href="../modules/CSHint_preprocess.html#CSHint_preprocess.CSHint_preprocess">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CSHint_preprocess</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Preprocessing utilities for CSHint_merger inputs.</span>
+
+<span class="sd">    Steps (all optional, call what you need before merger.run()):</span>
+<span class="sd">      1) preprocess_fasta_headers() : rename NCBI protein FASTA headers to gene symbols</span>
+<span class="sd">      2) synchronize_scrna_and_proteomes() : prefilter cells/genes before merging</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+
+<div class="viewcode-block" id="CSHint_preprocess.preprocess_fasta_headers">
+<a class="viewcode-back" href="../modules/CSHint_preprocess.html#CSHint_preprocess.CSHint_preprocess.preprocess_fasta_headers">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">preprocess_fasta_headers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gtf_fasta_map</span><span class="p">,</span> <span class="n">out_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Rename FASTA headers from raw accessions to gene symbols.</span>
+
+<span class="sd">        Detects RefSeq versus Ensembl annotation format independently for each species,</span>
+<span class="sd">        including whether the annotation is GTF or GFF3, then builds an accession-to-gene</span>
+<span class="sd">        index and rewrites the headers against it. For each species this writes a renamed</span>
+<span class="sd">        ``{species}.faa`` alongside a ``{species}_id_map.csv`` recording the mapping that</span>
+<span class="sd">        was applied.</span>
+
+<span class="sd">        :param gtf_fasta_map: Input paths per species, as</span>
+<span class="sd">            ``{&quot;species&quot;: {&quot;gtf&quot;: &quot;path/to/file.gtf|.gff&quot;, &quot;fasta&quot;: &quot;path/to/file.faa&quot;}, ...}``.</span>
+<span class="sd">        :type gtf_fasta_map: dict[str, dict[str, str]]</span>
+<span class="sd">        :param out_dir: Destination for the renamed FASTAs and ID maps. Created if absent.</span>
+<span class="sd">            Defaults to ``self.output_dir``.</span>
+<span class="sd">        :type out_dir: str or None</span>
+<span class="sd">        :returns: ``None``. Output is written to disk.</span>
+<span class="sd">        :rtype: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">out_dir</span> <span class="o">=</span> <span class="n">out_dir</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">species</span><span class="p">,</span> <span class="n">paths</span> <span class="ow">in</span> <span class="n">gtf_fasta_map</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">fmt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_detect_format</span><span class="p">(</span><span class="n">paths</span><span class="p">[</span><span class="s2">&quot;fasta&quot;</span><span class="p">],</span> <span class="n">paths</span><span class="p">[</span><span class="s2">&quot;gtf&quot;</span><span class="p">])</span>
+            <span class="n">is_gff</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_gff</span><span class="p">(</span><span class="n">paths</span><span class="p">[</span><span class="s2">&quot;gtf&quot;</span><span class="p">])</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">fmt</span><span class="si">}</span><span class="s2"> GFF3&quot;</span> <span class="k">if</span> <span class="n">is_gff</span> <span class="k">else</span> <span class="n">fmt</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">] Converting FASTA headers... (detected format: </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+            <span class="n">id_to_info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_gtf_index</span><span class="p">(</span><span class="n">paths</span><span class="p">[</span><span class="s2">&quot;gtf&quot;</span><span class="p">],</span> <span class="n">species</span><span class="p">,</span> <span class="n">fmt</span><span class="p">,</span> <span class="n">is_gff</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_detect_link_field</span><span class="p">(</span><span class="n">paths</span><span class="p">[</span><span class="s2">&quot;fasta&quot;</span><span class="p">],</span> <span class="n">id_to_info</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">fmt</span><span class="p">)</span>
+
+            <span class="n">out_fasta</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">.faa&quot;</span><span class="p">)</span>
+            <span class="n">out_csv</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">_id_map.csv&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_convert_fasta</span><span class="p">(</span><span class="n">paths</span><span class="p">[</span><span class="s2">&quot;fasta&quot;</span><span class="p">],</span> <span class="n">id_to_info</span><span class="p">,</span> <span class="n">out_fasta</span><span class="p">,</span> <span class="n">out_csv</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">fmt</span><span class="p">)</span></div>
+
+
+    <span class="c1"># ── private helpers ───────────────────────────────────────────────────────</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_open</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">gzip</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;rt&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">endswith</span><span class="p">((</span><span class="s2">&quot;.gz&quot;</span><span class="p">,</span> <span class="s2">&quot;.bgz&quot;</span><span class="p">))</span> <span class="k">else</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_gtf_attrs</span><span class="p">(</span><span class="n">attr_string</span><span class="p">):</span>
+        <span class="n">attrs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">finditer</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(\w+)\s+&quot;([^&quot;]*)&quot;&#39;</span><span class="p">,</span> <span class="n">attr_string</span><span class="p">):</span>
+            <span class="n">attrs</span><span class="p">[</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span> <span class="o">=</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">attrs</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_gff3_attrs</span><span class="p">(</span><span class="n">attr_string</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;GFF3 attributes are &#39;key=value;key=value&#39;, percent-encoded (e.g. %2C -&gt; ,).&quot;&quot;&quot;</span>
+        <span class="n">attrs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">attr_string</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;;&quot;</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">field</span> <span class="ow">or</span> <span class="s2">&quot;=&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">field</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">key</span><span class="p">,</span> <span class="n">val</span> <span class="o">=</span> <span class="n">field</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">attrs</span><span class="p">[</span><span class="n">key</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span> <span class="o">=</span> <span class="n">unquote</span><span class="p">(</span><span class="n">val</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">attrs</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_is_gff</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Format is detected from the annotation filename, per the caller&#39;s request.&quot;&quot;&quot;</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">endswith</span><span class="p">((</span><span class="s2">&quot;.gz&quot;</span><span class="p">,</span> <span class="s2">&quot;.bgz&quot;</span><span class="p">)):</span>
+            <span class="n">p</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">p</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">endswith</span><span class="p">((</span><span class="s2">&quot;.gff&quot;</span><span class="p">,</span> <span class="s2">&quot;.gff3&quot;</span><span class="p">))</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_versioned</span><span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="n">version</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Rebuild an Ensembl-style versioned accession: (ENSGALG00000038044, &#39;1&#39;) -&gt; ENSGALG00000038044.1&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">base</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">version</span> <span class="k">else</span> <span class="n">base</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_detect_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fasta_path</span><span class="p">,</span> <span class="n">gtf_path</span><span class="p">,</span> <span class="n">sample_n</span><span class="o">=</span><span class="mi">25</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Sniff RefSeq vs Ensembl from cheap signals in the first few lines of each file:</span>
+<span class="sd">          - Ensembl FASTA headers carry inline &#39;gene:...  transcript:...&#39; tags.</span>
+<span class="sd">          - Ensembl GTFs carry &#39;gene_version&#39; / &#39;transcript_version&#39; attributes,</span>
+<span class="sd">            which RefSeq GTFs never emit (RefSeq bakes the version into the</span>
+<span class="sd">            accession itself, e.g. NP_000005.2).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fasta_hits</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open</span><span class="p">(</span><span class="n">fasta_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="n">seen</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;&gt;&quot;</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="n">seen</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\bgene:\S+&#39;</span><span class="p">,</span> <span class="n">line</span><span class="p">)</span> <span class="ow">and</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\btranscript:\S+&#39;</span><span class="p">,</span> <span class="n">line</span><span class="p">):</span>
+                    <span class="n">fasta_hits</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">seen</span> <span class="o">&gt;=</span> <span class="n">sample_n</span><span class="p">:</span>
+                    <span class="k">break</span>
+
+        <span class="n">gtf_hits</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open</span><span class="p">(</span><span class="n">gtf_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="n">seen</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+                    <span class="k">continue</span>
+                <span class="n">seen</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="s2">&quot;gene_version&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="ow">or</span> <span class="s2">&quot;transcript_version&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
+                    <span class="n">gtf_hits</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">if</span> <span class="n">seen</span> <span class="o">&gt;=</span> <span class="n">sample_n</span><span class="p">:</span>
+                    <span class="k">break</span>
+
+        <span class="k">return</span> <span class="s2">&quot;ensembl&quot;</span> <span class="k">if</span> <span class="p">(</span><span class="n">fasta_hits</span> <span class="ow">or</span> <span class="n">gtf_hits</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;refseq&quot;</span>
+
+    <span class="c1"># --- FASTA header parsing, per format ---------------------------------------</span>
+
+    <span class="n">_FASTA_PATTERNS_REFSEQ</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^&gt;?\s*((?:NP|XP|YP|WP)_\S+)&quot;</span><span class="p">),</span>
+        <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^&gt;?\s*((?:NM|XM|NR|XR)_\S+)&quot;</span><span class="p">),</span>
+        <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;GeneID:(\d+)&quot;</span><span class="p">),</span>
+        <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^&gt;?\s*(\S+)&quot;</span><span class="p">),</span>
+    <span class="p">]</span>
+
+    <span class="n">_ENSEMBL_KV_PATTERN</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^(\w+):(.+)$&#39;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_ensembl_header</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">header</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Ensembl pep FASTA headers look like:</span>
+<span class="sd">          &gt;ENSGALP00000049024.1 pep scaffold:... gene:ENSGALG...1 transcript:ENSGALT...1</span>
+<span class="sd">           gene_biotype:protein_coding transcript_biotype:protein_coding</span>
+<span class="sd">           gene_symbol:SPATS2 description:...</span>
+<span class="sd">        Returns (primary_id, {key: value}) pulled from the space-delimited key:value</span>
+<span class="sd">        tags. Multi-word values (e.g. &#39;description&#39;) only capture their first word,</span>
+<span class="sd">        which is fine since we never use that field.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">header</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;&gt;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">tokens</span> <span class="o">=</span> <span class="n">h</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+        <span class="n">primary_id</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">tokens</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">kv</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">tok</span> <span class="ow">in</span> <span class="n">tokens</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ENSEMBL_KV_PATTERN</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">tok</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+                <span class="n">kv</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">primary_id</span><span class="p">,</span> <span class="n">kv</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_fasta_candidates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">header</span><span class="p">,</span> <span class="n">fmt</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Ordered list of accessions to try against the GTF index.</span>
+<span class="sd">        RefSeq: pull NP_/XP_/... style accessions out of free text.</span>
+<span class="sd">        Ensembl: use the structured primary id plus the gene:/transcript: tags.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">fmt</span> <span class="o">==</span> <span class="s2">&quot;ensembl&quot;</span><span class="p">:</span>
+            <span class="n">primary_id</span><span class="p">,</span> <span class="n">kv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_ensembl_header</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+            <span class="n">raw</span> <span class="o">=</span> <span class="p">[</span><span class="n">primary_id</span><span class="p">,</span> <span class="n">kv</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;transcript&quot;</span><span class="p">),</span> <span class="n">kv</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gene&quot;</span><span class="p">)]</span>
+            <span class="n">seen</span><span class="p">,</span> <span class="n">ordered</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(),</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">raw</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">c</span> <span class="ow">and</span> <span class="n">c</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen</span><span class="p">:</span>
+                    <span class="n">seen</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+                    <span class="n">ordered</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">ordered</span>
+
+        <span class="n">candidates</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">header</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;&gt;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">pat</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_FASTA_PATTERNS_REFSEQ</span><span class="p">:</span>
+            <span class="n">m</span> <span class="o">=</span> <span class="n">pat</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">m</span> <span class="ow">and</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">:</span>
+                <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">candidates</span>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_gtf_index</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gtf_path</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">fmt</span><span class="p">,</span> <span class="n">is_gff</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">fmt</span> <span class="o">==</span> <span class="s2">&quot;ensembl&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_gtf_index_ensembl</span><span class="p">(</span><span class="n">gtf_path</span><span class="p">,</span> <span class="n">species</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">is_gff</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_gtf_index_refseq_gff</span><span class="p">(</span><span class="n">gtf_path</span><span class="p">,</span> <span class="n">species</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_gtf_index_refseq</span><span class="p">(</span><span class="n">gtf_path</span><span class="p">,</span> <span class="n">species</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_gtf_index_refseq</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gtf_path</span><span class="p">,</span> <span class="n">species</span><span class="p">):</span>
+        <span class="n">id_to_info</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open</span><span class="p">(</span><span class="n">gtf_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+                    <span class="k">continue</span>
+                <span class="n">parts</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">9</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="n">nc_acc</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">attrs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_gtf_attrs</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">8</span><span class="p">])</span>
+
+                <span class="n">gene_id</span> <span class="o">=</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gene_id&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="n">transcript_id</span> <span class="o">=</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;transcript_id&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="n">gene_symbol</span> <span class="o">=</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gene&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">gene_id</span>
+
+                <span class="n">protein_ids</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">if</span> <span class="s2">&quot;protein_id&quot;</span> <span class="ow">in</span> <span class="n">attrs</span><span class="p">:</span>
+                    <span class="n">protein_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;protein_id&quot;</span><span class="p">])</span>
+                <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">finditer</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;db_xref\s+&quot;(?:GenBank:)?((?:NP|XP|YP)_\S+?)&quot;&#39;</span><span class="p">,</span> <span class="n">parts</span><span class="p">[</span><span class="mi">8</span><span class="p">]):</span>
+                    <span class="n">protein_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">))</span>
+
+                <span class="n">info</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">gene_id</span><span class="o">=</span><span class="n">gene_id</span><span class="p">,</span> <span class="n">transcript_id</span><span class="o">=</span><span class="n">transcript_id</span><span class="p">,</span>
+                            <span class="n">nc_accession</span><span class="o">=</span><span class="n">nc_acc</span><span class="p">,</span> <span class="n">gene_symbol</span><span class="o">=</span><span class="n">gene_symbol</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">acc</span> <span class="ow">in</span> <span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">[</span><span class="n">gene_id</span><span class="p">,</span> <span class="n">transcript_id</span><span class="p">]</span> <span class="o">+</span> <span class="n">protein_ids</span><span class="p">):</span>
+                    <span class="n">id_to_info</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">acc</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">info</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">] GTF index (RefSeq): </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">id_to_info</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> accession entries.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">id_to_info</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_gtf_index_refseq_gff</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gtf_path</span><span class="p">,</span> <span class="n">species</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        RefSeq GFF3 attributes are &#39;key=value&#39; rather than GTF&#39;s &#39;key &quot;value&quot;&#39;,</span>
+<span class="sd">        and RefSeq repeats &#39;gene=SYMBOL&#39; onto every child feature (mRNA/exon/CDS),</span>
+<span class="sd">        so no parent-lookup pass is needed to resolve a symbol. Protein and</span>
+<span class="sd">        transcript accessions come from explicit &#39;protein_id=&#39;/&#39;transcript_id=&#39;</span>
+<span class="sd">        attributes on CDS/RNA features; the &#39;Genbank:&#39; entry in Dbxref is used</span>
+<span class="sd">        as a fallback when those attributes are absent, and &#39;GeneID:&#39; in Dbxref</span>
+<span class="sd">        supplies a stable numeric gene id.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">id_to_info</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">rna_features</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;mRNA&quot;</span><span class="p">,</span> <span class="s2">&quot;lnc_RNA&quot;</span><span class="p">,</span> <span class="s2">&quot;ncRNA&quot;</span><span class="p">,</span> <span class="s2">&quot;transcript&quot;</span><span class="p">,</span> <span class="s2">&quot;misc_RNA&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;tRNA&quot;</span><span class="p">,</span> <span class="s2">&quot;rRNA&quot;</span><span class="p">,</span> <span class="s2">&quot;snRNA&quot;</span><span class="p">,</span> <span class="s2">&quot;snoRNA&quot;</span><span class="p">,</span> <span class="s2">&quot;primary_transcript&quot;</span><span class="p">}</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open</span><span class="p">(</span><span class="n">gtf_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+                    <span class="k">continue</span>
+                <span class="n">parts</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">9</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="n">nc_acc</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">feature</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+                <span class="n">attrs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_gff3_attrs</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">8</span><span class="p">])</span>
+
+                <span class="n">gene_symbol</span> <span class="o">=</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gene&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+                <span class="n">gene_ncbi_id</span><span class="p">,</span> <span class="n">genbank_acc</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span>
+                <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Dbxref&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">entry</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;GeneID:&quot;</span><span class="p">):</span>
+                        <span class="n">gene_ncbi_id</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="k">elif</span> <span class="n">entry</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;Genbank:&quot;</span><span class="p">):</span>
+                        <span class="n">genbank_acc</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+
+                <span class="n">transcript_id</span> <span class="o">=</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;transcript_id&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="n">protein_id</span> <span class="o">=</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;protein_id&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">transcript_id</span> <span class="ow">and</span> <span class="n">feature</span> <span class="ow">in</span> <span class="n">rna_features</span><span class="p">:</span>
+                    <span class="n">transcript_id</span> <span class="o">=</span> <span class="n">genbank_acc</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">protein_id</span> <span class="ow">and</span> <span class="n">feature</span> <span class="o">==</span> <span class="s2">&quot;CDS&quot;</span><span class="p">:</span>
+                    <span class="n">protein_id</span> <span class="o">=</span> <span class="n">genbank_acc</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">gene_symbol</span> <span class="ow">or</span> <span class="n">transcript_id</span> <span class="ow">or</span> <span class="n">protein_id</span><span class="p">):</span>
+                    <span class="k">continue</span>  <span class="c1"># region/exon-only lines etc. — nothing worth indexing</span>
+
+                <span class="n">info</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">gene_id</span><span class="o">=</span><span class="n">gene_ncbi_id</span> <span class="ow">or</span> <span class="n">gene_symbol</span><span class="p">,</span> <span class="n">transcript_id</span><span class="o">=</span><span class="n">transcript_id</span><span class="p">,</span>
+                            <span class="n">nc_accession</span><span class="o">=</span><span class="n">nc_acc</span><span class="p">,</span> <span class="n">gene_symbol</span><span class="o">=</span><span class="n">gene_symbol</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">acc</span> <span class="ow">in</span> <span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">[</span><span class="n">gene_symbol</span><span class="p">,</span> <span class="n">transcript_id</span><span class="p">,</span> <span class="n">protein_id</span><span class="p">]):</span>
+                    <span class="n">id_to_info</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">acc</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">info</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">] GTF index (RefSeq GFF3): </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">id_to_info</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> accession entries.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">id_to_info</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_gtf_index_ensembl</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gtf_path</span><span class="p">,</span> <span class="n">species</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Ensembl GTFs split accession and version into separate attributes</span>
+<span class="sd">        (gene_id/gene_version, transcript_id/transcript_version,</span>
+<span class="sd">        protein_id/protein_version) and store the gene symbol under &#39;gene_name&#39;</span>
+<span class="sd">        rather than &#39;gene&#39;. Protein ids only appear on CDS lines. We reconstruct</span>
+<span class="sd">        versioned ids (e.g. ENSGALG00000038044.1) so they match the versioned</span>
+<span class="sd">        accessions used in Ensembl FASTA headers.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">id_to_info</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open</span><span class="p">(</span><span class="n">gtf_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+                    <span class="k">continue</span>
+                <span class="n">parts</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">9</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="n">nc_acc</span> <span class="o">=</span> <span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">attrs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_gtf_attrs</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">8</span><span class="p">])</span>
+
+                <span class="n">gene_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_versioned</span><span class="p">(</span><span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gene_id&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gene_version&quot;</span><span class="p">))</span>
+                <span class="n">transcript_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_versioned</span><span class="p">(</span><span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;transcript_id&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;transcript_version&quot;</span><span class="p">))</span>
+                <span class="n">protein_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_versioned</span><span class="p">(</span><span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;protein_id&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;protein_version&quot;</span><span class="p">))</span>
+                <span class="n">gene_symbol</span> <span class="o">=</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gene_name&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gene_id&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+                <span class="n">info</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">gene_id</span><span class="o">=</span><span class="n">gene_id</span><span class="p">,</span> <span class="n">transcript_id</span><span class="o">=</span><span class="n">transcript_id</span><span class="p">,</span>
+                            <span class="n">nc_accession</span><span class="o">=</span><span class="n">nc_acc</span><span class="p">,</span> <span class="n">gene_symbol</span><span class="o">=</span><span class="n">gene_symbol</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">acc</span> <span class="ow">in</span> <span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="p">[</span><span class="n">gene_id</span><span class="p">,</span> <span class="n">transcript_id</span><span class="p">,</span> <span class="n">protein_id</span><span class="p">]):</span>
+                    <span class="n">id_to_info</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">acc</span><span class="p">,</span> <span class="n">info</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">] GTF index (Ensembl): </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">id_to_info</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> accession entries.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">id_to_info</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_detect_link_field</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fasta_path</span><span class="p">,</span> <span class="n">id_to_info</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">fmt</span><span class="p">,</span> <span class="n">sample_n</span><span class="o">=</span><span class="mi">200</span><span class="p">):</span>
+        <span class="n">counts</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open</span><span class="p">(</span><span class="n">fasta_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;&gt;&quot;</span><span class="p">):</span>
+                    <span class="k">continue</span>
+                <span class="n">total</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">for</span> <span class="n">cand</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_fasta_candidates</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">fmt</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">cand</span> <span class="ow">in</span> <span class="n">id_to_info</span><span class="p">:</span>
+                        <span class="n">prefix</span> <span class="o">=</span> <span class="n">cand</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;_&quot;</span> <span class="ow">in</span> <span class="n">cand</span> <span class="k">else</span> <span class="n">cand</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">][:</span><span class="mi">6</span><span class="p">]</span>
+                        <span class="n">counts</span><span class="p">[</span><span class="n">prefix</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                        <span class="k">break</span>
+                <span class="k">if</span> <span class="n">total</span> <span class="o">&gt;=</span> <span class="n">sample_n</span><span class="p">:</span>
+                    <span class="k">break</span>
+
+        <span class="k">if</span> <span class="n">counts</span><span class="p">:</span>
+            <span class="n">best</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">counts</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">counts</span><span class="o">.</span><span class="fm">__getitem__</span><span class="p">)</span>
+            <span class="n">report</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">counts</span><span class="o">.</span><span class="n">items</span><span class="p">()))</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">] Autodetected link field &#39;</span><span class="si">{</span><span class="n">best</span><span class="si">}</span><span class="s2">&#39; (</span><span class="si">{</span><span class="n">report</span><span class="si">}</span><span class="s2">) from </span><span class="si">{</span><span class="n">total</span><span class="si">}</span><span class="s2"> headers.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">] WARNING: No headers matched GTF index in first </span><span class="si">{</span><span class="n">total</span><span class="si">}</span><span class="s2"> sampled.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_convert_fasta</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fasta_path</span><span class="p">,</span> <span class="n">id_to_info</span><span class="p">,</span> <span class="n">out_fasta</span><span class="p">,</span> <span class="n">out_csv</span><span class="p">,</span> <span class="n">species</span><span class="p">,</span> <span class="n">fmt</span><span class="p">):</span>
+        <span class="n">renamed</span><span class="p">,</span> <span class="n">not_found</span><span class="p">,</span> <span class="n">csv_rows</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">[]</span>
+
+        <span class="n">sequences</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># gene_symbol -&gt; {&quot;seq&quot;: str, &quot;csv_row&quot;: dict}</span>
+
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open</span><span class="p">(</span><span class="n">fasta_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="n">candidates</span><span class="p">,</span> <span class="n">info</span><span class="p">,</span> <span class="n">header_line</span><span class="p">,</span> <span class="n">buffer</span> <span class="o">=</span> <span class="p">[],</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="p">[]</span>
+
+            <span class="k">def</span><span class="w"> </span><span class="nf">process</span><span class="p">():</span>
+                <span class="n">orig</span> <span class="o">=</span> <span class="n">candidates</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">candidates</span> <span class="k">else</span> <span class="s2">&quot;UNKNOWN&quot;</span>
+                <span class="n">seq</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="n">buffer</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">info</span><span class="p">:</span>
+                    <span class="n">sym</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="s2">&quot;gene_symbol&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="n">info</span><span class="p">[</span><span class="s2">&quot;gene_id&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="n">orig</span>
+                    <span class="n">row</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;original_id&quot;</span><span class="p">:</span> <span class="n">orig</span><span class="p">,</span> <span class="o">**</span><span class="n">info</span><span class="p">}</span>
+                <span class="k">elif</span> <span class="n">fmt</span> <span class="o">==</span> <span class="s2">&quot;ensembl&quot;</span><span class="p">:</span>
+
+                    <span class="n">_</span><span class="p">,</span> <span class="n">kv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_ensembl_header</span><span class="p">(</span><span class="n">header_line</span><span class="p">)</span>
+                    <span class="n">fallback_sym</span> <span class="o">=</span> <span class="n">kv</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gene_symbol&quot;</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">fallback_sym</span><span class="p">:</span>
+                        <span class="n">sym</span> <span class="o">=</span> <span class="n">fallback_sym</span>
+                        <span class="n">row</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;original_id&quot;</span><span class="p">:</span> <span class="n">orig</span><span class="p">,</span> <span class="s2">&quot;gene_symbol&quot;</span><span class="p">:</span> <span class="n">fallback_sym</span><span class="p">,</span>
+                               <span class="s2">&quot;gene_id&quot;</span><span class="p">:</span> <span class="n">kv</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;gene&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span> <span class="s2">&quot;transcript_id&quot;</span><span class="p">:</span> <span class="n">kv</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;transcript&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                               <span class="s2">&quot;nc_accession&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">}</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">sym</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">orig</span><span class="si">}</span><span class="s2">_NO_MATCH&quot;</span>
+                        <span class="n">row</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;original_id&quot;</span><span class="p">:</span> <span class="n">orig</span><span class="p">,</span> <span class="s2">&quot;gene_symbol&quot;</span><span class="p">:</span> <span class="s2">&quot;NO_MATCH&quot;</span><span class="p">,</span>
+                               <span class="s2">&quot;gene_id&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;transcript_id&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;nc_accession&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">}</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">sym</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">orig</span><span class="si">}</span><span class="s2">_NO_MATCH&quot;</span>
+                    <span class="n">row</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;original_id&quot;</span><span class="p">:</span> <span class="n">orig</span><span class="p">,</span> <span class="s2">&quot;gene_symbol&quot;</span><span class="p">:</span> <span class="s2">&quot;NO_MATCH&quot;</span><span class="p">,</span>
+                           <span class="s2">&quot;gene_id&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;transcript_id&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;nc_accession&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">}</span>
+
+                <span class="k">if</span> <span class="n">sym</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">sequences</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">sequences</span><span class="p">[</span><span class="n">sym</span><span class="p">][</span><span class="s2">&quot;seq&quot;</span><span class="p">]):</span>
+                    <span class="n">sequences</span><span class="p">[</span><span class="n">sym</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;seq&quot;</span><span class="p">:</span> <span class="n">seq</span><span class="p">,</span> <span class="s2">&quot;csv_row&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">}</span>
+
+            <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">fh</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;&gt;&quot;</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">buffer</span><span class="p">:</span>
+                        <span class="n">process</span><span class="p">()</span>
+                    <span class="n">header_line</span> <span class="o">=</span> <span class="n">line</span>
+                    <span class="n">candidates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_fasta_candidates</span><span class="p">(</span><span class="n">line</span><span class="p">,</span> <span class="n">fmt</span><span class="p">)</span>
+                    <span class="n">info</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">id_to_info</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">candidates</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">id_to_info</span><span class="p">),</span> <span class="kc">None</span><span class="p">)</span>
+                    <span class="n">buffer</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">buffer</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">buffer</span><span class="p">:</span>
+                <span class="n">process</span><span class="p">()</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">out_fasta</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">out</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">sym</span><span class="p">,</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">sequences</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&gt;</span><span class="si">{</span><span class="n">sym</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">seq</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;seq&quot;</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">seq</span><span class="p">),</span> <span class="mi">60</span><span class="p">):</span>
+                    <span class="n">out</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">seq</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span> <span class="o">+</span> <span class="mi">60</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">row</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="s2">&quot;csv_row&quot;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;gene_symbol&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;NO_MATCH&quot;</span><span class="p">:</span>
+                    <span class="n">not_found</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">renamed</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">csv_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">out_csv</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">csvfile</span><span class="p">:</span>
+            <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">DictWriter</span><span class="p">(</span><span class="n">csvfile</span><span class="p">,</span> <span class="n">fieldnames</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;original_id&quot;</span><span class="p">,</span> <span class="s2">&quot;gene_symbol&quot;</span><span class="p">,</span>
+                                                         <span class="s2">&quot;gene_id&quot;</span><span class="p">,</span> <span class="s2">&quot;transcript_id&quot;</span><span class="p">,</span> <span class="s2">&quot;nc_accession&quot;</span><span class="p">])</span>
+            <span class="n">writer</span><span class="o">.</span><span class="n">writeheader</span><span class="p">()</span>
+            <span class="n">writer</span><span class="o">.</span><span class="n">writerows</span><span class="p">(</span><span class="n">csv_rows</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">] </span><span class="si">{</span><span class="n">renamed</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">not_found</span><span class="si">}</span><span class="s2"> unique symbols written (</span><span class="si">{</span><span class="n">not_found</span><span class="si">}</span><span class="s2"> unmatched).&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">] → </span><span class="si">{</span><span class="n">out_fasta</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">] → </span><span class="si">{</span><span class="n">out_csv</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CSHint_preprocess.synchronize_scrna_and_proteomes">
+<a class="viewcode-back" href="../modules/CSHint_preprocess.html#CSHint_preprocess.CSHint_preprocess.synchronize_scrna_and_proteomes">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">synchronize_scrna_and_proteomes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">species_map</span><span class="p">,</span> <span class="n">prot_out_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scrna_out_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">         Filter scRNA-seq and protein sequences to the genes shared between them.</span>
+
+<span class="sd">        FASTA headers are assumed to already be gene symbols. Both gene names and record</span>
+<span class="sd">        IDs are upper-cased before intersecting, so the two sources need only agree up to</span>
+<span class="sd">        case. Each species is written out as a filtered ``.h5ad`` and ``.faa`` pair named</span>
+<span class="sd">        after the species key; species with no shared genes are skipped with a warning</span>
+<span class="sd">        rather than raising.</span>
+
+<span class="sd">        Note that duplicate gene symbols created by upper-casing are disambiguated with a</span>
+<span class="sd">        ``-`` suffix, which will not match any FASTA record and so drops those genes from</span>
+<span class="sd">        the intersection.</span>
+
+<span class="sd">        :param species_map: Input paths per species, as</span>
+<span class="sd">            ``{&quot;species_name&quot;: {&quot;h5ad&quot;: &quot;path.h5ad&quot;, &quot;fasta&quot;: &quot;path.faa&quot;}, ...}``.</span>
+<span class="sd">        :type species_map: dict[str, dict[str, str]]</span>
+<span class="sd">        :param prot_out_dir: Directory for the filtered proteomes. Created if absent.</span>
+<span class="sd">        :type prot_out_dir: str</span>
+<span class="sd">        :param scrna_out_dir: Directory for the filtered expression data. Created if absent.</span>
+<span class="sd">        :type scrna_out_dir: str</span>
+<span class="sd">        :returns: ``None``. Output is written to disk.</span>
+<span class="sd">        :rtype: None</span>
+<span class="sd">        :raises TypeError: If either output directory is left as ``None``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">prot_out_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">scrna_out_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">species</span><span class="p">,</span> <span class="n">paths</span> <span class="ow">in</span> <span class="n">species_map</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">] Harmonizing scRNA-seq and Proteome...&quot;</span><span class="p">)</span>
+
+            <span class="n">adata</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">read_h5ad</span><span class="p">(</span><span class="n">paths</span><span class="p">[</span><span class="s2">&quot;h5ad&quot;</span><span class="p">])</span>
+            <span class="n">adata</span><span class="o">.</span><span class="n">var_names_make_unique</span><span class="p">()</span>
+
+            <span class="n">adata</span><span class="o">.</span><span class="n">var_names</span> <span class="o">=</span> <span class="n">adata</span><span class="o">.</span><span class="n">var_names</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+            <span class="n">adata</span><span class="o">.</span><span class="n">var_names_make_unique</span><span class="p">(</span><span class="n">join</span><span class="o">=</span><span class="s2">&quot;-&quot;</span><span class="p">)</span>
+
+            <span class="n">protein_seqs</span> <span class="o">=</span> <span class="p">{</span><span class="n">record</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">upper</span><span class="p">():</span> <span class="n">record</span> <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">SeqIO</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">paths</span><span class="p">[</span><span class="s2">&quot;fasta&quot;</span><span class="p">],</span> <span class="s2">&quot;fasta&quot;</span><span class="p">)}</span>
+
+            <span class="k">for</span> <span class="n">upper_id</span><span class="p">,</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">protein_seqs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">record</span><span class="o">.</span><span class="n">id</span> <span class="o">=</span> <span class="n">upper_id</span>
+                <span class="n">record</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">upper_id</span>
+                <span class="n">record</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="n">upper_id</span>
+
+            <span class="n">rna_genes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">adata</span><span class="o">.</span><span class="n">var_names</span><span class="p">)</span>
+            <span class="n">prot_genes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">protein_seqs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+            <span class="n">shared_genes</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">rna_genes</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">prot_genes</span><span class="p">)))</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">] Shared genes found: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">shared_genes</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">shared_genes</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">] WARNING: No shared genes. Skipping.&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="n">adata_filtered</span> <span class="o">=</span> <span class="n">adata</span><span class="p">[:,</span> <span class="n">shared_genes</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+            <span class="n">filtered_proteins</span> <span class="o">=</span> <span class="p">[</span><span class="n">protein_seqs</span><span class="p">[</span><span class="n">gene</span><span class="p">]</span> <span class="k">for</span> <span class="n">gene</span> <span class="ow">in</span> <span class="n">shared_genes</span><span class="p">]</span>
+
+            <span class="n">h5ad_out</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">scrna_out_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">.h5ad&quot;</span><span class="p">)</span>
+            <span class="n">faa_out</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">prot_out_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">.faa&quot;</span><span class="p">)</span>
+
+            <span class="n">adata_filtered</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">h5ad_out</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">faa_out</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">SeqIO</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">filtered_proteins</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="s2">&quot;fasta&quot;</span><span class="p">)</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">] Saved filtered h5ad to </span><span class="si">{</span><span class="n">h5ad_out</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  [</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">] Saved filtered proteome to </span><span class="si">{</span><span class="n">faa_out</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Alicia Petrany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
