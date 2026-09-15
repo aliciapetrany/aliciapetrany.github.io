@@ -1,0 +1,752 @@
+{
+ "cells": [
+  {
+   "metadata": {
+    "collapsed": true
+   },
+   "cell_type": "markdown",
+   "source": [
+    "# Before you get started\n",
+    "\n",
+    "### You need the following data:\n",
+    "\n",
+    "**1) Reference proteomes for each species**\n",
+    "\n",
+    "This model works right out of the box with refseq and ensemble proteome header formats from the following sources:\n",
+    "https://www.ncbi.nlm.nih.gov/datasets/\n",
+    "http://ftp.ensembl.org/pub/\n",
+    "\n",
+    "if you are using data from one of these sources, download both the .faa and .gtf files. If not, the protomes input into the tool must be in the following format, with gene names that directly match those in the scRNA-seq matrices:\n",
+    "\n",
+    ">\\>gene_name_1\n",
+    "Sequence\n",
+    ">\\>gene_name_2\n",
+    "Sequence\n",
+    "\n",
+    "**2) Cleaned scRNA-seq matrices**\n",
+    "\n",
+    "Counts should be stored within anndata objects compressed in the h5ad format. Raw counts should be stored in the adata.X slot. Each species should be stored in its own h5ad file. These datasets should be filtered for high quality genes/cells beforehand.\n",
+    "\n",
+    "**3) Putative cell type annotations**\n",
+    "CSHint requires that each species have at least 3 cell types in common with the reference species. Cell type annotations do not need to be complete or highly granular. General groupings like \"epithelial\", \"endothelial\", \"stromal\", and \"immune\" will suffice. Cell type names need to be standardised across species. They should be stored in a single column in the adata.obs slot in the h5ads for each species.\n",
+    "\n",
+    "### Dependencies\n",
+    "This tool runs on python 3.10. See the requirements.txt file in this directory for necessary dependencies."
+   ],
+   "id": "3a9939439cd4f2c6"
+  },
+  {
+   "metadata": {},
+   "cell_type": "markdown",
+   "source": [
+    "# Preprocessing module\n",
+    "\n",
+    "The preprocessing module is an optional module that automates some of the necessary preprocessing for CSHint. Note that these cleaning steps must be done manually if you choose note to use this module, or if your data does not follow standard formats.\n",
+    "\n",
+    "### Step 1: clean the proteomes:\n",
+    "\n",
+    "In the below step, we are cleaning the proteome headers so that they only contain gene names that match the scRNA-seq matrices. In this case, we are using proteome from both refseq and ensembl, to match the original assemblies used by the authors. The preprocess module can automatically detect these file headers, and parse them accordingly. It will write the cleaned fastas into a new directory"
+   ],
+   "id": "856b62dc9b76b4f4"
+  },
+  {
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2026-08-31T02:52:26.603831735Z",
+     "start_time": "2026-08-31T02:51:53.773470202Z"
+    }
+   },
+   "cell_type": "code",
+   "source": [
+    "from CSHint.utils.CSHint_preprocess import CSHint_preprocess\n",
+    "\n",
+    "pre = CSHint_preprocess()\n",
+    "\n",
+    "path_dict = {\n",
+    "    \"chicken\" : {\"gtf\" : \"../PaperScripts/Spermatogenesis/Data/gtfs/chicken.gtf\",\n",
+    "                 \"fasta\": \"../PaperScripts/Spermatogenesis/Data/raw_proteomes/chicken.faa\"},\n",
+    "    \"human\" : {\"gtf\" : \"../PaperScripts/Spermatogenesis/Data/gtfs/human.gtf\",\n",
+    "               \"fasta\": \"../PaperScripts/Spermatogenesis/Data/raw_proteomes/human.faa\"},\n",
+    "     \"mouse\" : {\"gtf\" : \"../PaperScripts/Spermatogenesis/Data/gtfs/mouse.gtf\",\n",
+    "                \"fasta\": \"../PaperScripts/Spermatogenesis/Data/raw_proteomes/mouse.faa\"},\n",
+    "     \"Monodelphis\" : {\"gtf\" : \"../PaperScripts/Spermatogenesis/Data/gtfs/Monodelphis.gtf\",\n",
+    "                      \"fasta\": \"../PaperScripts/Spermatogenesis/Data/raw_proteomes/Monodelphis.faa\"},\n",
+    "     \"platypus\" : {\"gtf\" : \"../PaperScripts/Spermatogenesis/Data/gtfs/platypus.gtf\",\n",
+    "                   \"fasta\": \"../PaperScripts/Spermatogenesis/Data/raw_proteomes/platypus.faa\"},\n",
+    "     \"rhesus\" : {\"gtf\" : \"../PaperScripts/Spermatogenesis/Data/gtfs/rhesus.gff\",\n",
+    "                 \"fasta\": \"../PaperScripts/Spermatogenesis/Data/raw_proteomes/rhesus.faa\"},\n",
+    "     \"sheep\" : {\"gtf\" : \"../PaperScripts/Spermatogenesis/Data/gtfs/sheep.gtf\",\n",
+    "                \"fasta\": \"../PaperScripts/Spermatogenesis/Data/raw_proteomes/sheep.faa\"}\n",
+    "}\n",
+    "\n",
+    "\n",
+    "pre.preprocess_fasta_headers(path_dict, out_dir =\"../../CSHint/filtered_proteomes\")"
+   ],
+   "id": "3cbf6c1cf5e9cd9c",
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[chicken] Converting FASTA headers... (detected format: ensembl)\n",
+      "  [chicken] GTF index (Ensembl): 93,251 accession entries.\n",
+      "  [chicken] Autodetected link field 'ENSGAL' (ENSGAL:200) from 200 headers.\n",
+      "  [chicken] 18308 unique symbols written (0 unmatched).\n",
+      "  [chicken] → filtered_proteomes/chicken.faa\n",
+      "  [chicken] → filtered_proteomes/chicken_id_map.csv\n",
+      "[human] Converting FASTA headers... (detected format: refseq)\n",
+      "  [human] GTF index (RefSeq): 212,424 accession entries.\n",
+      "  [human] Autodetected link field 'NP' (NP:200) from 200 headers.\n",
+      "  [human] 19869 unique symbols written (0 unmatched).\n",
+      "  [human] → filtered_proteomes/human.faa\n",
+      "  [human] → filtered_proteomes/human_id_map.csv\n",
+      "[mouse] Converting FASTA headers... (detected format: refseq)\n",
+      "  [mouse] GTF index (RefSeq): 101,433 accession entries.\n",
+      "  [mouse] Autodetected link field 'NP' (NP:200) from 200 headers.\n",
+      "  [mouse] 21847 unique symbols written (0 unmatched).\n",
+      "  [mouse] → filtered_proteomes/mouse.faa\n",
+      "  [mouse] → filtered_proteomes/mouse_id_map.csv\n",
+      "[Monodelphis] Converting FASTA headers... (detected format: ensembl)\n",
+      "  [Monodelphis] GTF index (Ensembl): 85,037 accession entries.\n",
+      "  [Monodelphis] Autodetected link field 'ENSMOD' (ENSMOD:200) from 200 headers.\n",
+      "  [Monodelphis] 21326 unique symbols written (0 unmatched).\n",
+      "  [Monodelphis] → filtered_proteomes/Monodelphis.faa\n",
+      "  [Monodelphis] → filtered_proteomes/Monodelphis_id_map.csv\n",
+      "[platypus] Converting FASTA headers... (detected format: ensembl)\n",
+      "  [platypus] GTF index (Ensembl): 102,103 accession entries.\n",
+      "  [platypus] Autodetected link field 'ENSOAN' (ENSOAN:200) from 200 headers.\n",
+      "  [platypus] 17416 unique symbols written (0 unmatched).\n",
+      "  [platypus] → filtered_proteomes/platypus.faa\n",
+      "  [platypus] → filtered_proteomes/platypus_id_map.csv\n",
+      "[rhesus] Converting FASTA headers... (detected format: refseq GFF3)\n",
+      "  [rhesus] GTF index (RefSeq GFF3): 154,949 accession entries.\n",
+      "  [rhesus] Autodetected link field 'NP' (NP:200) from 200 headers.\n",
+      "  [rhesus] 21306 unique symbols written (0 unmatched).\n",
+      "  [rhesus] → filtered_proteomes/rhesus.faa\n",
+      "  [rhesus] → filtered_proteomes/rhesus_id_map.csv\n",
+      "[sheep] Converting FASTA headers... (detected format: refseq)\n",
+      "  [sheep] GTF index (RefSeq): 122,103 accession entries.\n",
+      "  [sheep] Autodetected link field 'NP' (NP:200) from 200 headers.\n",
+      "  [sheep] 20532 unique symbols written (0 unmatched).\n",
+      "  [sheep] → filtered_proteomes/sheep.faa\n",
+      "  [sheep] → filtered_proteomes/sheep_id_map.csv\n"
+     ]
+    }
+   ],
+   "execution_count": 1
+  },
+  {
+   "metadata": {},
+   "cell_type": "markdown",
+   "source": [
+    "### Step 2: Synchronising the protomes and the scRNA-seq.\n",
+    "\n",
+    "The following function filters the protome and the scRNA data so that only genes shared between the two are kept for each species. This technically isn't required, however it is HIGHLY recommended to do this to cut down on run times down the line."
+   ],
+   "id": "c8dfb2d0cad252f2"
+  },
+  {
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2026-08-31T02:52:31.789761602Z",
+     "start_time": "2026-08-31T02:52:26.607450493Z"
+    }
+   },
+   "cell_type": "code",
+   "source": [
+    "path_dict = {\n",
+    "    \"chicken\" : {\"h5ad\" : \"../PaperScripts/Spermatogenesis/Data/raw_adatas/chicken.h5ad\",\n",
+    "                 \"fasta\": \"filtered_proteomes/chicken.faa\"},\n",
+    "    \"human\" : {\"h5ad\" : \"../PaperScripts/Spermatogenesis/Data/raw_adatas/human.h5ad\",\n",
+    "               \"fasta\": \"filtered_proteomes/human.faa\"},\n",
+    "     \"mouse\" : {\"h5ad\" : \"../PaperScripts/Spermatogenesis/Data/raw_adatas/mouse.h5ad\",\n",
+    "                \"fasta\": \"filtered_proteomes/mouse.faa\"},\n",
+    "     \"Monodelphis\" : {\"h5ad\" : \"../PaperScripts/Spermatogenesis/Data/raw_adatas/Monodelphis.h5ad\",\n",
+    "                      \"fasta\": \"filtered_proteomes/Monodelphis.faa\"},\n",
+    "     \"platypus\" : {\"h5ad\" : \"../PaperScripts/Spermatogenesis/Data/raw_adatas/platypus.h5ad\",\n",
+    "                   \"fasta\": \"filtered_proteomes/platypus.faa\"},\n",
+    "     \"rhesus\" : {\"h5ad\" : \"../PaperScripts/Spermatogenesis/Data/raw_adatas/rhesus.h5ad\",\n",
+    "                 \"fasta\": \"filtered_proteomes/rhesus.faa\"},\n",
+    "     \"sheep\" : {\"h5ad\" : \"../PaperScripts/Spermatogenesis/Data/raw_adatas/sheep.h5ad\",\n",
+    "                \"fasta\": \"filtered_proteomes/sheep.faa\"}\n",
+    "}\n",
+    "\n",
+    "pre.synchronize_scrna_and_proteomes(species_map = path_dict, prot_out_dir=\"../../CSHint/filtered_proteomes/\", scrna_out_dir=\"../../CSHint/filtered_scrna/\")"
+   ],
+   "id": "bf842ba9750a35ec",
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "[chicken] Harmonizing scRNA-seq and Proteome...\n",
+      "  [chicken] Shared genes found: 9207\n",
+      "  [chicken] Saved filtered h5ad to filtered_scrna/chicken.h5ad\n",
+      "  [chicken] Saved filtered proteome to filtered_proteomes/chicken.faa\n",
+      "[human] Harmonizing scRNA-seq and Proteome...\n",
+      "  [human] Shared genes found: 17454\n",
+      "  [human] Saved filtered h5ad to filtered_scrna/human.h5ad\n",
+      "  [human] Saved filtered proteome to filtered_proteomes/human.faa\n",
+      "[mouse] Harmonizing scRNA-seq and Proteome...\n",
+      "  [mouse] Shared genes found: 18629\n",
+      "  [mouse] Saved filtered h5ad to filtered_scrna/mouse.h5ad\n",
+      "  [mouse] Saved filtered proteome to filtered_proteomes/mouse.faa\n",
+      "[Monodelphis] Harmonizing scRNA-seq and Proteome...\n",
+      "  [Monodelphis] Shared genes found: 10498\n",
+      "  [Monodelphis] Saved filtered h5ad to filtered_scrna/Monodelphis.h5ad\n",
+      "  [Monodelphis] Saved filtered proteome to filtered_proteomes/Monodelphis.faa\n",
+      "[platypus] Harmonizing scRNA-seq and Proteome...\n",
+      "  [platypus] Shared genes found: 8938\n",
+      "  [platypus] Saved filtered h5ad to filtered_scrna/platypus.h5ad\n",
+      "  [platypus] Saved filtered proteome to filtered_proteomes/platypus.faa\n",
+      "[rhesus] Harmonizing scRNA-seq and Proteome...\n",
+      "  [rhesus] Shared genes found: 14316\n",
+      "  [rhesus] Saved filtered h5ad to filtered_scrna/rhesus.h5ad\n",
+      "  [rhesus] Saved filtered proteome to filtered_proteomes/rhesus.faa\n",
+      "[sheep] Harmonizing scRNA-seq and Proteome...\n",
+      "  [sheep] Shared genes found: 20532\n",
+      "  [sheep] Saved filtered h5ad to filtered_scrna/sheep.h5ad\n",
+      "  [sheep] Saved filtered proteome to filtered_proteomes/sheep.faa\n"
+     ]
+    }
+   ],
+   "execution_count": 2
+  },
+  {
+   "metadata": {},
+   "cell_type": "markdown",
+   "source": [
+    "# Running Orthofinder\n",
+    "CSHint requires gene family information. It does this by using orthogroup information from Orthofinder (https://doi.org/10.1186/s13059-019-1832-y). This module comes with a python wrapper for it:"
+   ],
+   "id": "9b104f378d9832d2"
+  },
+  {
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2026-08-31T03:08:39.255554139Z",
+     "start_time": "2026-08-31T02:52:31.791687681Z"
+    }
+   },
+   "cell_type": "code",
+   "source": [
+    "from CSHint.utils.OrthofinderWrapper import OrthoFinderWrapper\n",
+    "ow = OrthoFinderWrapper()\n",
+    "ow.run_orthofinder(inputdir=\"filtered_proteomes/\",\n",
+    "    orthofinder_path=\"orthofinder\",\n",
+    "    threads=16)"
+   ],
+   "id": "a7398cafa7ed3450",
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Running: orthofinder -f filtered_proteomes/ -t 16\n",
+      "\n",
+      "OrthoFinder version 3.0.1b1 Copyright (C) 2014 David Emms\n",
+      "\n",
+      "2026-08-31 02:52:32 : Starting OrthoFinder 3.0.1b1\n",
+      "16 thread(s) for highly parallel tasks (BLAST searches etc.)\n",
+      "2 thread(s) for OrthoFinder algorithm\n",
+      "\n",
+      "Results directory: /storage/shared/alicia/analysis/CSHInt_github/CSHint/filtered_proteomes/OrthoFinder/Results_Aug31_1/\n",
+      "\n",
+      "Checking required programs are installed\n",
+      "----------------------------------------\n",
+      "Running with the recommended MSA tree inference by default. To revert to legacy method use '-M dendroblast'.\n",
+      "\n",
+      "Test can run \"mcl -h\" - ok\n",
+      "Test can run \"mafft\" - ok\n",
+      "Test can run \"fasttree\" - ok\n",
+      "\n",
+      "WARNING: Files have been ignored as they don't appear to be FASTA files:\n",
+      "Monodelphis_id_map.csv\n",
+      "chicken_id_map.csv\n",
+      "human_id_map.csv\n",
+      "mouse_id_map.csv\n",
+      "platypus_id_map.csv\n",
+      "rhesus_id_map.csv\n",
+      "sheep_id_map.csv\n",
+      "OrthoFinder expects FASTA files to have one of the following extensions: fasta, fas, faa, pep, fa\n",
+      "\n",
+      "Dividing up work for BLAST for parallel processing\n",
+      "--------------------------------------------------\n",
+      "2026-08-31 02:52:33 : Creating diamond database 1 of 7\n",
+      "2026-08-31 02:52:33 : Creating diamond database 2 of 7\n",
+      "2026-08-31 02:52:33 : Creating diamond database 3 of 7\n",
+      "2026-08-31 02:52:33 : Creating diamond database 4 of 7\n",
+      "2026-08-31 02:52:33 : Creating diamond database 5 of 7\n",
+      "2026-08-31 02:52:33 : Creating diamond database 6 of 7\n",
+      "2026-08-31 02:52:33 : Creating diamond database 7 of 7\n",
+      "\n",
+      "Running diamond all-versus-all\n",
+      "------------------------------\n",
+      "Using 16 thread(s)\n",
+      "2026-08-31 02:52:34 : This may take some time....\n",
+      "2026-08-31 02:52:34 : Done 0 of 49\n",
+      "2026-08-31 02:54:27 : Done 10 of 49\n",
+      "2026-08-31 02:55:24 : Done 20 of 49\n",
+      "2026-08-31 02:55:55 : Done 30 of 49\n",
+      "2026-08-31 02:57:03 : Done all-versus-all sequence search\n",
+      "\n",
+      "Running OrthoFinder algorithm\n",
+      "-----------------------------\n",
+      "2026-08-31 02:57:04 : Initial processing of each species\n",
+      "2026-08-31 02:57:06 : Initial processing of species 1 complete\n",
+      "2026-08-31 02:57:06 : Initial processing of species 0 complete\n",
+      "2026-08-31 02:57:10 : Initial processing of species 2 complete\n",
+      "2026-08-31 02:57:11 : Initial processing of species 3 complete\n",
+      "2026-08-31 02:57:12 : Initial processing of species 4 complete\n",
+      "2026-08-31 02:57:15 : Initial processing of species 5 complete\n",
+      "2026-08-31 02:57:18 : Initial processing of species 6 complete\n",
+      "2026-08-31 02:57:22 : Connected putative homologues\n",
+      "2026-08-31 02:57:22 : Written final scores for species 1 to graph file\n",
+      "2026-08-31 02:57:22 : Written final scores for species 0 to graph file\n",
+      "2026-08-31 02:57:23 : Written final scores for species 2 to graph file\n",
+      "2026-08-31 02:57:23 : Written final scores for species 3 to graph file\n",
+      "2026-08-31 02:57:24 : Written final scores for species 4 to graph file\n",
+      "2026-08-31 02:57:24 : Written final scores for species 5 to graph file\n",
+      "2026-08-31 02:57:25 : Written final scores for species 6 to graph file\n",
+      "2026-08-31 02:57:31 : Ran MCL\n",
+      "\n",
+      "Writing orthogroups to file\n",
+      "---------------------------\n",
+      "\n",
+      "2026-08-31 02:57:37 : Done orthogroups\n",
+      "\n",
+      "Analysing Orthogroups\n",
+      "=====================\n",
+      "2026-08-31 02:57:37 : Starting MSA/Trees\n",
+      "Species tree: Using 2673 orthogroups with minimum of 100.0% of species having single-copy genes in any orthogroup\n",
+      "\n",
+      "Inferring multiple sequence alignments for species tree\n",
+      "-------------------------------------------------------\n",
+      "2026-08-31 02:57:41 : Done 0 of 2673\n",
+      "2026-08-31 02:58:09 : Done 1000 of 2673\n",
+      "2026-08-31 02:58:37 : Done 2000 of 2673\n",
+      "\n",
+      "Inferring remaining multiple sequence alignments and gene trees\n",
+      "---------------------------------------------------------------\n",
+      "2026-08-31 02:59:01 : Done 0 of 10333\n",
+      "2026-08-31 03:02:02 : Done 1000 of 10333\n",
+      "2026-08-31 03:03:17 : Done 2000 of 10333\n",
+      "2026-08-31 03:03:50 : Done 3000 of 10333\n",
+      "2026-08-31 03:04:16 : Done 4000 of 10333\n",
+      "2026-08-31 03:04:42 : Done 5000 of 10333\n",
+      "2026-08-31 03:05:02 : Done 6000 of 10333\n",
+      "2026-08-31 03:05:22 : Done 7000 of 10333\n",
+      "2026-08-31 03:05:37 : Done 8000 of 10333\n",
+      "2026-08-31 03:05:52 : Done 9000 of 10333\n",
+      "2026-08-31 03:06:04 : Done 10000 of 10333\n",
+      "2026-08-31 03:08:18 : Done MSA/Trees\n",
+      "\n",
+      "Best outgroup(s) for species tree\n",
+      "---------------------------------\n",
+      "2026-08-31 03:08:18 : Starting STRIDE\n",
+      "2026-08-31 03:08:19 : Done STRIDE\n",
+      "Observed 190 well-supported, non-terminal duplications. 162 support the best root and 28 contradict it.\n",
+      "Best outgroup for species tree:\n",
+      "  chicken\n",
+      "\n",
+      "Reconciling gene trees and species tree\n",
+      "---------------------------------------\n",
+      "Outgroup: chicken\n",
+      "2026-08-31 03:08:19 : Starting Recon and orthologues\n",
+      "2026-08-31 03:08:19 : Starting OF Orthologues\n",
+      "2026-08-31 03:08:19 : Done 0 of 11611\n",
+      "2026-08-31 03:08:21 : Done 1000 of 11611\n",
+      "2026-08-31 03:08:22 : Done 2000 of 11611\n",
+      "2026-08-31 03:08:23 : Done 3000 of 11611\n",
+      "2026-08-31 03:08:24 : Done 4000 of 11611\n",
+      "2026-08-31 03:08:25 : Done 5000 of 11611\n",
+      "2026-08-31 03:08:27 : Done 6000 of 11611\n",
+      "2026-08-31 03:08:28 : Done 7000 of 11611\n",
+      "2026-08-31 03:08:29 : Done 8000 of 11611\n",
+      "2026-08-31 03:08:30 : Done 9000 of 11611\n",
+      "2026-08-31 03:08:32 : Done 10000 of 11611\n",
+      "2026-08-31 03:08:33 : Done 11000 of 11611\n",
+      "2026-08-31 03:08:36 : Done OF Orthologues\n",
+      "\n",
+      "Writing results files\n",
+      "=====================\n",
+      "OrthoFinder assigned 98229 genes (98.6% of total) to 14586 orthogroups. Fifty percent of genes were in orthogroups with 7 or more genes (G50 was 7) and were contained in the largest 5248 orthogroups (O50 was 5248). There were 4947 orthogroups with all species present and 3802 of these consisted entirely of single-copy genes.\n",
+      "2026-08-31 03:08:37 : Done orthologues\n",
+      "\n",
+      "Results:\n",
+      "    /storage/shared/alicia/analysis/CSHInt_github/CSHint/filtered_proteomes/OrthoFinder/Results_Aug31_1/\n",
+      "\n",
+      "CITATION:\n",
+      " When publishing work that uses OrthoFinder please cite:\n",
+      " Emms D.M. & Kelly S. (2019), Genome Biology 20:238\n",
+      "\n",
+      " If you use the species tree in your work then please also cite:\n",
+      " Emms D.M. & Kelly S. (2017), MBE 34(12): 3267-3278\n",
+      " Emms D.M. & Kelly S. (2018), bioRxiv https://doi.org/10.1101/267914\n"
+     ]
+    }
+   ],
+   "execution_count": 3
+  },
+  {
+   "metadata": {},
+   "cell_type": "markdown",
+   "source": [
+    "# Running the count merge module\n",
+    "The countmerge module merges counts together by creating 1-1 pairings of genes across species based on both sequence and expression level orthology using a greedy algorithm. TODO: EXPAND ON HOW THIS WORKS HERE"
+   ],
+   "id": "356d9f01bb3dec47"
+  },
+  {
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2026-08-31T03:12:03.053953822Z",
+     "start_time": "2026-08-31T03:08:39.260270813Z"
+    }
+   },
+   "cell_type": "code",
+   "source": [
+    "from CSHint.utils.CSHint_merger import CSHint_merger\n",
+    "\n",
+    "import warnings\n",
+    "warnings.filterwarnings(\"ignore\")\n",
+    "\n",
+    "\n",
+    "\n",
+    "scrnadirs = {\n",
+    "    \"human\": \"filtered_scrna/human.h5ad\",\n",
+    "    \"mouse\": \"filtered_scrna/mouse.h5ad\",\n",
+    "    \"rhesus\": \"filtered_scrna/rhesus.h5ad\",\n",
+    "    \"sheep\" : \"filtered_scrna/sheep.h5ad\",\n",
+    "    \"Monodelphis\": \"filtered_scrna/Monodelphis.h5ad\",\n",
+    "    \"platypus\": \"filtered_scrna/platypus.h5ad\",\n",
+    "    \"chicken\": \"filtered_scrna/chicken.h5ad\"\n",
+    "\n",
+    "}\n",
+    "\n",
+    "merger = CSHint_merger(\n",
+    "    orthofinder_resultdir=\"filtered_proteomes/OrthoFinder/Results_Aug31/\",\n",
+    "    scrna_dirs=scrnadirs,\n",
+    "    output_dir=\"../../CSHint/merged_output/\",\n",
+    "    annotation_obs_col = \"metacluster\", #include the name of the column you put the cell type annotations in here\n",
+    "\n",
+    ")\n",
+    "\n",
+    "merger.run()"
+   ],
+   "id": "3bbd754230af1411",
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Loading OrthoFinder results...\n",
+      "Loading scRNA-seq data...\n",
+      "  Loading human...\n",
+      "  Loading mouse...\n",
+      "  Loading rhesus...\n",
+      "  Loading sheep...\n",
+      "  Loading Monodelphis...\n",
+      "  Loading platypus...\n",
+      "  Loading chicken...\n",
+      "  Found 5 anchor cell types across all species\n",
+      "Computing anchor cell type means (normalised)...\n",
+      "Computing greedy functional homolog layering...\n",
+      "Filling final matrix...\n",
+      "  24394 rows x 38825 cells; 95.7% of total counts retained in orthogroup layers\n",
+      "Normalising (scale_factor=10000, log1p=True, by=matrix)...\n",
+      "Saving to merged_output/...\n",
+      "Saved 24394 rows and 38825 cells.\n",
+      "Metadata generated: metadata.txt, rowmetadata.csv, normalisation.json\n",
+      "Matrices: matrix.mtx (raw counts), matrix_normalised.mtx (scaled)\n"
+     ]
+    }
+   ],
+   "execution_count": 4
+  },
+  {
+   "metadata": {},
+   "cell_type": "markdown",
+   "source": [
+    "# Running the integration module\n",
+    "\n",
+    "Now that we have the merged matrix, we can begin the integration steps. First, we need to create a select set of features for integration (this is comparable to running sc.pp.highly_variable_genes() in scanpy or FindVariableFeatures in seurat). For feature selection, it is best to prioritise genes that will have similar expression patterns across cell types and  preserve enough variance to distinguish cell types. Do do this, CSHint uses a two part filter. The discriminability percentile is a measure of a features variance (for measuring it's capacity for cell type separation) and the conservation threshold measures how similar a features expression is across species. These two thresholds can be manually adjusted. It is recommended to leave around 1000 features for integration."
+   ],
+   "id": "bd7be06e26c6a8a1"
+  },
+  {
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2026-08-31T04:33:35.919873168Z",
+     "start_time": "2026-08-31T04:33:00.681914824Z"
+    }
+   },
+   "cell_type": "code",
+   "source": [
+    "from CSHint.utils.CSHint_integration import CSHint_integration\n",
+    "analysis = CSHint_integration(\"../../CSHint/merged_output/\", reference_species =\"human\")\n",
+    "analysis.load()\n",
+    "\n",
+    "analysis.select_features(\n",
+    "    discriminability_threshold=0.4,\n",
+    "    conservation_threshold=0.5,\n",
+    ")\n",
+    "\n"
+   ],
+   "id": "cb1a0363c696eaa3",
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "/home/apetrany/miniconda3/envs/CSHint/lib/python3.10/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html\n",
+      "  from .autonotebook import tqdm as notebook_tqdm\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Loading data from merged_output/...\n",
+      "Calculating cell type means from matrix...\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "/storage/shared/alicia/analysis/CSHInt_github/CSHint/utils/CSHint_integration.py:198: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.\n",
+      "  c, _ = spearmanr(vecs[i], vecs[j])\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Selected 1760 features.\n"
+     ]
+    }
+   ],
+   "execution_count": 1
+  },
+  {
+   "metadata": {},
+   "cell_type": "markdown",
+   "source": "Next, we can prepare the selected features for integration. This step normalises the data and notes equivalencies across cell types.",
+   "id": "afc210a96016e8ec"
+  },
+  {
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2026-08-31T04:33:42.740487760Z",
+     "start_time": "2026-08-31T04:33:35.921797902Z"
+    }
+   },
+   "cell_type": "code",
+   "source": "adata = analysis.prepare_for_integration()",
+   "id": "3dc763e4631ed060",
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "/home/apetrany/miniconda3/envs/CSHint/lib/python3.10/functools.py:889: UserWarning: zero-centering a sparse array/matrix densifies it.\n",
+      "  return dispatch(args[0].__class__)(*args, **kw)\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "  Reference species: human (7 cell types)\n",
+      "  Full anchors (all species): 5\n",
+      "  Partial anchors: 2\n",
+      "  Unique cell types: 0\n",
+      "  human <-> mouse: 7 shared cell types (Early Sperm, Early Spermatid, Early Spermatocyte, Late Sperm, Late Spermatid...)\n",
+      "  human <-> rhesus: 5 shared cell types (Early Spermatid, Early Spermatocyte, Late Spermatid, Late Spermatocyte, SSC)\n",
+      "  human <-> sheep: 7 shared cell types (Early Sperm, Early Spermatid, Early Spermatocyte, Late Sperm, Late Spermatid...)\n",
+      "  human <-> Monodelphis: 6 shared cell types (Early Spermatid, Early Spermatocyte, Late Sperm, Late Spermatid, Late Spermatocyte...)\n",
+      "  human <-> platypus: 5 shared cell types (Early Spermatid, Early Spermatocyte, Late Spermatid, Late Spermatocyte, SSC)\n",
+      "  human <-> chicken: 6 shared cell types (Early Spermatid, Early Spermatocyte, Late Sperm, Late Spermatid, Late Spermatocyte...)\n"
+     ]
+    }
+   ],
+   "execution_count": 2
+  },
+  {
+   "metadata": {},
+   "cell_type": "markdown",
+   "source": [
+    "Now we can run a brief optimisation protocol to identify the optimal number of anchors for integration. Benchmark evaluation showed that there was minimal performance gain after 10 trials.\n",
+    "\n",
+    "\n",
+    "At this stage, it is very important to consider whether you would like anchor selection to be cell type aware or cell type agnostic. If you choose cell type aware, anchors will be restricted between cells of the same type. This approach is optimal if you have high quality cell annotations. If the cell type annotations are poor quality or incomplete, run the model with cell_type_agnostic = True.\n"
+   ],
+   "id": "615f90e7c7574337"
+  },
+  {
+   "metadata": {
+    "ExecuteTime": {
+     "end_time": "2026-08-31T04:33:42.906877307Z",
+     "start_time": "2026-08-31T04:33:42.745913195Z"
+    }
+   },
+   "cell_type": "code",
+   "source": [
+    "study, best_params, adata = analysis.optimize(\n",
+    "    adata,\n",
+    "    n_trials=15,\n",
+    "    cell_type_agnostic=False\n",
+    ")"
+   ],
+   "id": "5aa9ea38d389dea",
+   "outputs": [
+    {
+     "ename": "AttributeError",
+     "evalue": "'CSHint_integration' object has no attribute 'optimize'",
+     "output_type": "error",
+     "traceback": [
+      "\u001B[0;31m---------------------------------------------------------------------------\u001B[0m",
+      "\u001B[0;31mAttributeError\u001B[0m                            Traceback (most recent call last)",
+      "Cell \u001B[0;32mIn[3], line 1\u001B[0m\n\u001B[0;32m----> 1\u001B[0m study, best_params, adata \u001B[38;5;241m=\u001B[39m \u001B[43manalysis\u001B[49m\u001B[38;5;241;43m.\u001B[39;49m\u001B[43moptimize\u001B[49m(\n\u001B[1;32m      2\u001B[0m     adata,\n\u001B[1;32m      3\u001B[0m     n_trials\u001B[38;5;241m=\u001B[39m\u001B[38;5;241m15\u001B[39m,\n\u001B[1;32m      4\u001B[0m     cell_type_agnostic\u001B[38;5;241m=\u001B[39m\u001B[38;5;28;01mFalse\u001B[39;00m\n\u001B[1;32m      5\u001B[0m )\n",
+      "\u001B[0;31mAttributeError\u001B[0m: 'CSHint_integration' object has no attribute 'optimize'"
+     ]
+    }
+   ],
+   "execution_count": 3
+  },
+  {
+   "metadata": {},
+   "cell_type": "markdown",
+   "source": "We can find the final embeddings here:",
+   "id": "515f82b243633c0d"
+  },
+  {
+   "metadata": {},
+   "cell_type": "code",
+   "source": "adata.obsm[\"X_pca\"]",
+   "id": "7cce65cdbb2b2a24",
+   "outputs": [],
+   "execution_count": null
+  },
+  {
+   "metadata": {},
+   "cell_type": "markdown",
+   "source": "Now, we can check out the umap:",
+   "id": "c8ce386bc179fa8e"
+  },
+  {
+   "metadata": {},
+   "cell_type": "code",
+   "source": [
+    "import scanpy as sc\n",
+    "sc.pp.neighbors(adata)\n",
+    "sc.tl.umap(adata)"
+   ],
+   "id": "a48adbf333422577",
+   "outputs": [],
+   "execution_count": null
+  },
+  {
+   "metadata": {},
+   "cell_type": "code",
+   "source": "sc.pl.umap(adata, color= \"species\")",
+   "id": "61aaa8b6698312fc",
+   "outputs": [],
+   "execution_count": null
+  },
+  {
+   "metadata": {},
+   "cell_type": "code",
+   "source": "sc.pl.umap(adata, color = \"cell_type\")",
+   "id": "22ac8b08dc5eee89",
+   "outputs": [],
+   "execution_count": null
+  },
+  {
+   "metadata": {},
+   "cell_type": "markdown",
+   "source": "Sometimes, you may notice cells that appeared to integrate poorly. These manifest a cells that are not close to their cell-type cluster of origin. This may happen if a cell was not properly labeled or if it's a doublet. These cells can be easily filtered out with the following command:\n",
+   "id": "170aa718179d18ef"
+  },
+  {
+   "metadata": {},
+   "cell_type": "code",
+   "source": "adata_pcacor = analysis.post_integration_correction(adata, [\"cell_type\", \"species\"], method = \"pca\", pval_cutoff = pow(10, -10))",
+   "id": "a67d58da76d2c87a",
+   "outputs": [],
+   "execution_count": null
+  },
+  {
+   "metadata": {},
+   "cell_type": "markdown",
+   "source": "Now we can see that they're gone!",
+   "id": "14556cc3a4dd35ae"
+  },
+  {
+   "metadata": {},
+   "cell_type": "code",
+   "source": [
+    "sc.tl.umap(adata_pcacor)\n",
+    "sc.pl.umap(adata_pcacor, color = \"cell_type\")"
+   ],
+   "id": "867ccbe970dc7b",
+   "outputs": [],
+   "execution_count": null
+  },
+  {
+   "metadata": {},
+   "cell_type": "markdown",
+   "source": "Thats it! Now we can save out the embeddings. They are stored in adata.obsm[\"X_pca\"]. In any downstream analysis that you may do, you can sub the merged CSHint embeddings for PCA embeddings.",
+   "id": "d71c814a1b8bc653"
+  },
+  {
+   "metadata": {},
+   "cell_type": "code",
+   "source": [
+    "import pandas as pd\n",
+    "pca_df = pd.DataFrame(\n",
+    "    adata_pcacor.obsm[\"X_pca\"],\n",
+    "    index=adata_pcacor.obs_names  # cell names\n",
+    ")\n",
+    "pca_df.to_csv(\"embeddings.csv\")\n",
+    "\n",
+    "adata_pcacor.obs.to_csv(\"metadata.csv\")\n",
+    "\n",
+    "adata_pcacor.write_h5ad(\"adata.h5ad\")"
+   ],
+   "id": "d300b87e9a56acf5",
+   "outputs": [],
+   "execution_count": null
+  },
+  {
+   "metadata": {},
+   "cell_type": "code",
+   "outputs": [],
+   "execution_count": null,
+   "source": "",
+   "id": "d9f28261b00ff0f9"
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 2
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython2",
+   "version": "2.7.6"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

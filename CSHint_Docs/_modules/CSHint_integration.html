@@ -1,0 +1,1075 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CSHint_integration &mdash; CSHint</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CSHint
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Tutorials.html">Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CSHint</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Module code</a></li>
+      <li class="breadcrumb-item active">CSHint_integration</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for CSHint_integration</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">numba</span><span class="w"> </span><span class="kn">import</span> <span class="n">njit</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">anndata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ad</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scipy.io</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sio</span>  <span class="c1"># For loading .mtx</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">spearmanr</span><span class="p">,</span> <span class="n">rankdata</span><span class="p">,</span> <span class="n">chi2</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scanpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sc</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">optuna</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">adjusted_rand_score</span><span class="p">,</span> <span class="n">normalized_mutual_info_score</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.covariance</span><span class="w"> </span><span class="kn">import</span> <span class="n">MinCovDet</span>
+
+
+<span class="n">optuna</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">set_verbosity</span><span class="p">(</span><span class="n">optuna</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">WARNING</span><span class="p">)</span>
+
+
+<span class="nd">@njit</span><span class="p">(</span><span class="n">cache</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_greedy_matching</span><span class="p">(</span><span class="n">ref_sorted</span><span class="p">,</span> <span class="n">target_sorted</span><span class="p">,</span> <span class="n">ws_sorted</span><span class="p">,</span>
+                     <span class="n">n_anchors_target</span><span class="p">,</span> <span class="n">min_weight</span><span class="p">,</span> <span class="n">n_cells</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This function facilitates anchor pairing</span>
+
+<span class="sd">    Instead of using an MNN like selection approach, cells are greedily paired with their closest cross species</span>
+<span class="sd">    relatives</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">claimed_ref</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_cells</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)</span>
+    <span class="n">claimed_target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_cells</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">)</span>
+
+    <span class="n">out_ref</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_anchors_target</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+    <span class="n">out_target</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_anchors_target</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+    <span class="n">out_w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">n_anchors_target</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">n_found</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ref_sorted</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">ws_sorted</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">min_weight</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="n">ri</span> <span class="o">=</span> <span class="n">ref_sorted</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+        <span class="n">ti</span> <span class="o">=</span> <span class="n">target_sorted</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">claimed_ref</span><span class="p">[</span><span class="n">ri</span><span class="p">]</span> <span class="ow">or</span> <span class="n">claimed_target</span><span class="p">[</span><span class="n">ti</span><span class="p">]:</span>
+            <span class="k">continue</span>
+        <span class="n">out_ref</span><span class="p">[</span><span class="n">n_found</span><span class="p">]</span> <span class="o">=</span> <span class="n">ri</span>
+        <span class="n">out_target</span><span class="p">[</span><span class="n">n_found</span><span class="p">]</span> <span class="o">=</span> <span class="n">ti</span>
+        <span class="n">out_w</span><span class="p">[</span><span class="n">n_found</span><span class="p">]</span> <span class="o">=</span> <span class="n">ws_sorted</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+        <span class="n">claimed_ref</span><span class="p">[</span><span class="n">ri</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">claimed_target</span><span class="p">[</span><span class="n">ti</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">n_found</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">n_found</span> <span class="o">==</span> <span class="n">n_anchors_target</span><span class="p">:</span>
+            <span class="k">break</span>
+
+    <span class="k">return</span> <span class="n">out_ref</span><span class="p">[:</span><span class="n">n_found</span><span class="p">],</span> <span class="n">out_target</span><span class="p">[:</span><span class="n">n_found</span><span class="p">],</span> <span class="n">out_w</span><span class="p">[:</span><span class="n">n_found</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="CSHint_integration">
+<a class="viewcode-back" href="../modules/CSHint_integration.html#CSHint_integration.CSHint_integration">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CSHint_integration</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This module manages species integration using the merged matrix output by the CSHint_merge module.</span>
+
+<span class="sd">    Steps:</span>
+<span class="sd">      1) load() : Loads in the merged matrix</span>
+<span class="sd">      2) select_features() : Selects a shortlist of features to use during integration</span>
+<span class="sd">      3) prepare_for_integration(): Normalizes the data, runs PCA, and classifies cell types</span>
+<span class="sd">      4) integrate() OR integrate_no_optimization() : Runs the TPS correction. integrate() is highly reccomended</span>
+<span class="sd">      5) [ONLY IF NECESSARY] post_integration_correction() : removes cells that are not integrate properly</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+
+<div class="viewcode-block" id="CSHint_integration.__init__">
+<a class="viewcode-back" href="../modules/CSHint_integration.html#CSHint_integration.CSHint_integration.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">,</span> <span class="n">reference_species</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialise an integration run.</span>
+
+<span class="sd">        :param output_dir: Directory the merged matrices were written to by the CSHint</span>
+<span class="sd">            merge module.</span>
+<span class="sd">        :type output_dir: str</span>
+<span class="sd">        :param reference_species: Species ID to correct towards. If ``None``, the species</span>
+<span class="sd">            with the most cells is chosen during :meth:`prepare_for_integration`.</span>
+<span class="sd">        :type reference_species: str or None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span> <span class="o">=</span> <span class="n">output_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reference_species</span> <span class="o">=</span> <span class="n">reference_species</span></div>
+
+
+<div class="viewcode-block" id="CSHint_integration.load">
+<a class="viewcode-back" href="../modules/CSHint_integration.html#CSHint_integration.CSHint_integration.load">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Re-load the merged matrix and its metadata from ``self.output_dir``.</span>
+
+<span class="sd">        Reads ``matrix_normalised.mtx``, ``metadata.txt`` and ``rowmetadata.csv``, then</span>
+<span class="sd">        computes per-cell-type means. Populates ``self.raw_tensor``,</span>
+<span class="sd">        ``self.annotations``, ``self.raw_tensorlabels``,</span>
+<span class="sd">        ``self.raw_gene_layer_assignments`` and ``self.cell_type_means``.</span>
+
+<span class="sd">        :returns: ``None``. Results are stored on the instance.</span>
+<span class="sd">        :rtype: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading data from </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+
+        <span class="n">matrix_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="s2">&quot;matrix_normalised.mtx&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">raw_tensor</span> <span class="o">=</span> <span class="n">sio</span><span class="o">.</span><span class="n">mmread</span><span class="p">(</span><span class="n">matrix_path</span><span class="p">)</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>
+
+        <span class="n">col_meta_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="s2">&quot;metadata.txt&quot;</span><span class="p">)</span>
+        <span class="n">col_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">col_meta_path</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">col_df</span><span class="p">[</span><span class="s1">&#39;species&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">():</span>
+            <span class="n">sp_df</span> <span class="o">=</span> <span class="n">col_df</span><span class="p">[</span><span class="n">col_df</span><span class="p">[</span><span class="s1">&#39;species&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">sp</span><span class="p">]</span>
+            <span class="c1"># Set index to barcode (removing species prefix for internal compatibility)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">[</span><span class="n">sp</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span>
+                <span class="n">sp_df</span><span class="p">[</span><span class="s1">&#39;cell_type&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+                <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="n">bc</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">sp</span><span class="si">}</span><span class="s2">_&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">bc</span> <span class="ow">in</span> <span class="n">sp_df</span><span class="p">[</span><span class="s1">&#39;cell_id&#39;</span><span class="p">]]</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">raw_tensorlabels</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;cols&quot;</span><span class="p">:</span> <span class="n">col_df</span><span class="p">[</span><span class="s1">&#39;cell_id&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()}</span>
+
+        <span class="n">row_meta_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="s2">&quot;rowmetadata.csv&quot;</span><span class="p">)</span>
+        <span class="n">row_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">row_meta_path</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">raw_tensorlabels</span><span class="p">[</span><span class="s2">&quot;rows&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">row_df</span><span class="p">[</span><span class="s1">&#39;row_id&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">raw_gene_layer_assignments</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">row_df</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+            <span class="n">og</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;orthogroup&#39;</span><span class="p">]</span>
+            <span class="n">rank</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;rank&#39;</span><span class="p">])</span>
+            <span class="n">genes</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;genes&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;;&#39;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">og</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_gene_layer_assignments</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">raw_gene_layer_assignments</span><span class="p">[</span><span class="n">og</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">genes</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">raw_gene_layer_assignments</span><span class="p">[</span><span class="n">og</span><span class="p">][</span><span class="n">g</span><span class="p">]</span> <span class="o">=</span> <span class="n">rank</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_means_from_matrix</span><span class="p">(</span><span class="n">col_df</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_calculate_means_from_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">col_df</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Computes means for each cell type per species from the sparse matrix.&quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Calculating cell type means from matrix...&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cell_type_means</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Identify anchor cell types (present in all species)</span>
+        <span class="n">species_list</span> <span class="o">=</span> <span class="n">col_df</span><span class="p">[</span><span class="s1">&#39;species&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+        <span class="n">ct_per_sp</span> <span class="o">=</span> <span class="p">[</span><span class="nb">set</span><span class="p">(</span><span class="n">col_df</span><span class="p">[</span><span class="n">col_df</span><span class="p">[</span><span class="s1">&#39;species&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">s</span><span class="p">][</span><span class="s1">&#39;cell_type&#39;</span><span class="p">])</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">species_list</span><span class="p">]</span>
+        <span class="n">anchor_cts</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="o">*</span><span class="n">ct_per_sp</span><span class="p">)))</span>
+
+        <span class="c1">#get species-wise cell type anchors across species</span>
+        <span class="k">for</span> <span class="n">sp</span> <span class="ow">in</span> <span class="n">species_list</span><span class="p">:</span>
+            <span class="n">sp_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">col_df</span><span class="p">[</span><span class="s1">&#39;species&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">sp</span><span class="p">)</span><span class="o">.</span><span class="n">values</span>
+            <span class="n">sp_matrix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_tensor</span><span class="p">[:,</span> <span class="n">sp_mask</span><span class="p">]</span>  <span class="c1"># Matrix is (Genes, Cells)</span>
+            <span class="n">sp_metadata</span> <span class="o">=</span> <span class="n">col_df</span><span class="p">[</span><span class="n">sp_mask</span><span class="p">]</span>
+
+            <span class="n">means_dict</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">ct</span> <span class="ow">in</span> <span class="n">anchor_cts</span><span class="p">:</span>
+                <span class="n">ct_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">sp_metadata</span><span class="p">[</span><span class="s1">&#39;cell_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="n">ct</span><span class="p">)</span><span class="o">.</span><span class="n">values</span>
+                <span class="k">if</span> <span class="n">ct_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="c1"># Mean across columns (cells) for this cell type</span>
+                    <span class="n">means_dict</span><span class="p">[</span><span class="n">ct</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">sp_matrix</span><span class="p">[:,</span> <span class="n">ct_mask</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">means_dict</span><span class="p">[</span><span class="n">ct</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">sp_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+            <span class="c1"># Index by row_id (the merged features)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cell_type_means</span><span class="p">[</span><span class="n">sp</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">means_dict</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">raw_tensorlabels</span><span class="p">[</span><span class="s2">&quot;rows&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+
+<div class="viewcode-block" id="CSHint_integration.select_features">
+<a class="viewcode-back" href="../modules/CSHint_integration.html#CSHint_integration.CSHint_integration.select_features">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">select_features</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">discriminability_threshold</span><span class="o">=</span><span class="mf">0.75</span><span class="p">,</span> <span class="n">conservation_threshold</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select features that are both conserved across species and discriminative</span>
+<span class="sd">        between cell types.</span>
+
+<span class="sd">        Conservation is scored first and filters the candidate pool; the discriminability</span>
+<span class="sd">        cutoff is then a percentile of the survivors only, so the two thresholds are not</span>
+<span class="sd">        independent. Populates ``self.selected_features``,</span>
+<span class="sd">        ``self.discriminability_scores`` and ``self.conservation_scores``.</span>
+
+<span class="sd">        :param discriminability_threshold: Percentile cutoff on discriminability,</span>
+<span class="sd">            expressed as a fraction and applied to the conservation-filtered candidates.</span>
+<span class="sd">            This is a quantile, not a score: ``0.75`` keeps the most variable quarter of</span>
+<span class="sd">            candidates, and ``0.0`` keeps all of them.</span>
+<span class="sd">        :type discriminability_threshold: float</span>
+<span class="sd">        :param conservation_threshold: Minimum mean pairwise Spearman correlation across</span>
+<span class="sd">            species for a feature to be considered at all. Applied as an absolute score</span>
+<span class="sd">            in ``[-1, 1]``, unlike the discriminability cutoff.</span>
+<span class="sd">        :type conservation_threshold: float</span>
+<span class="sd">        :returns: ``None``. Results are stored on the instance.</span>
+<span class="sd">        :rtype: None</span>
+<span class="sd">        :raises IndexError: If no feature clears ``conservation_threshold``, leaving the</span>
+<span class="sd">            percentile with an empty distribution.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">species_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cell_type_means</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">discriminability_threshold</span> <span class="o">=</span> <span class="n">discriminability_threshold</span> <span class="o">*</span> <span class="mi">100</span>
+        <span class="c1"># Get unique features from the row metadata</span>
+        <span class="n">unique_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_tensorlabels</span><span class="p">[</span><span class="s2">&quot;rows&quot;</span><span class="p">]</span>
+
+        <span class="n">discriminability_scores</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">conservation_scores</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">final_candidates</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">feat</span> <span class="ow">in</span> <span class="n">unique_features</span><span class="p">:</span>
+            <span class="n">vecs</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">species</span> <span class="ow">in</span> <span class="n">species_list</span><span class="p">:</span>
+                <span class="c1"># Direct lookup since index is now the feature name</span>
+                <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_type_means</span><span class="p">[</span><span class="n">species</span><span class="p">][</span><span class="n">feat</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+                <span class="n">vecs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+
+            <span class="c1"># Discriminability (Variance)</span>
+            <span class="n">discriminability_scores</span><span class="p">[</span><span class="n">feat</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">vecs</span><span class="p">])</span>
+
+            <span class="c1"># Conservation (Correlation)</span>
+            <span class="n">corrs</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">vecs</span><span class="p">)):</span>
+                <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">vecs</span><span class="p">)):</span>
+                    <span class="n">c</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">spearmanr</span><span class="p">(</span><span class="n">vecs</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">vecs</span><span class="p">[</span><span class="n">j</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">c</span><span class="p">):</span> <span class="n">corrs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">c</span><span class="p">)</span>
+
+            <span class="n">conservation_scores</span><span class="p">[</span><span class="n">feat</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">corrs</span><span class="p">)</span> <span class="k">if</span> <span class="n">corrs</span> <span class="k">else</span> <span class="mi">0</span>
+
+            <span class="k">if</span> <span class="n">conservation_scores</span><span class="p">[</span><span class="n">feat</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">conservation_threshold</span><span class="p">:</span>
+                <span class="n">final_candidates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">feat</span><span class="p">)</span>
+
+        <span class="c1"># Apply Percentile Threshold</span>
+        <span class="n">disc_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">discriminability_scores</span><span class="p">[</span><span class="n">f</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">final_candidates</span><span class="p">]</span>
+        <span class="n">disc_cutoff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">disc_values</span><span class="p">,</span> <span class="n">discriminability_threshold</span><span class="p">)</span>
+
+        <span class="c1"># Store as (og, rank) tuples to keep compatibility with rest of class</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">selected_features</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">final_candidates</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">discriminability_scores</span><span class="p">[</span><span class="n">f</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">disc_cutoff</span><span class="p">:</span>
+                <span class="c1"># Reconstruct the tuple from the string name &quot;OG_rankX&quot;</span>
+                <span class="n">parts</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_rank&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">selected_features</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">parts</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">int</span><span class="p">(</span><span class="n">parts</span><span class="p">[</span><span class="mi">1</span><span class="p">])))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">discriminability_scores</span> <span class="o">=</span> <span class="p">{(</span><span class="n">f</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_rank&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">int</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_rank&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])):</span> <span class="n">v</span>
+                                        <span class="k">for</span> <span class="n">f</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">discriminability_scores</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conservation_scores</span> <span class="o">=</span> <span class="p">{(</span><span class="n">f</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_rank&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">int</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_rank&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">])):</span> <span class="n">v</span>
+                                    <span class="k">for</span> <span class="n">f</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">conservation_scores</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Selected </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">selected_features</span><span class="p">)</span><span class="si">}</span><span class="s2"> features.&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSHint_integration.to_anndata">
+<a class="viewcode-back" href="../modules/CSHint_integration.html#CSHint_integration.CSHint_integration.to_anndata">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_anndata</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert the feature-by-cell matrix into a cell-by-feature AnnData.</span>
+
+<span class="sd">        Slices ``self.raw_tensor`` to the selected features and transposes it, attaching</span>
+<span class="sd">        orthogroup, rank and score columns to ``var`` and species and cell type to</span>
+<span class="sd">        ``obs``.</span>
+
+<span class="sd">        :returns: Cell-by-feature data for the selected features.</span>
+<span class="sd">        :rtype: anndata.AnnData</span>
+<span class="sd">        :raises ValueError: If :meth:`select_features` has not been run, or if no</span>
+<span class="sd">            selected feature name matches a row of the matrix.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;selected_features&quot;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Run select_features() first.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># 1. Map feature names to matrix row indices</span>
+        <span class="n">row_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_tensorlabels</span><span class="p">[</span><span class="s2">&quot;rows&quot;</span><span class="p">]</span>
+        <span class="n">row_to_idx</span> <span class="o">=</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">row_names</span><span class="p">)}</span>
+
+        <span class="n">indices</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">valid_features</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">og_name</span><span class="p">,</span> <span class="n">rank</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">selected_features</span><span class="p">:</span>
+            <span class="n">fname</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">og_name</span><span class="si">}</span><span class="s2">_rank</span><span class="si">{</span><span class="n">rank</span><span class="si">}</span><span class="s2">&quot;</span>
+
+            <span class="k">if</span> <span class="n">fname</span> <span class="ow">in</span> <span class="n">row_to_idx</span><span class="p">:</span>
+                <span class="n">indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row_to_idx</span><span class="p">[</span><span class="n">fname</span><span class="p">])</span>
+                <span class="n">valid_features</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">og_name</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">fname</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">indices</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;No features found in matrix! Check if row names in your &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;matrix (e.g., &#39;</span><span class="si">{</span><span class="n">row_names</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39;) match expected format &#39;</span><span class="si">{</span><span class="n">og_name</span><span class="si">}</span><span class="s2">_rank</span><span class="si">{</span><span class="n">rank</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">X_selected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_tensor</span><span class="p">[</span><span class="n">indices</span><span class="p">,</span> <span class="p">:]</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>
+
+        <span class="n">var_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+            <span class="s2">&quot;orthogroup&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">f</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">valid_features</span><span class="p">],</span>
+            <span class="s2">&quot;rank&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">f</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">valid_features</span><span class="p">],</span>  <span class="c1"># Changed &#39;layer&#39; to &#39;rank&#39; for consistency</span>
+            <span class="s2">&quot;discriminability&quot;</span><span class="p">:</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">discriminability_scores</span><span class="p">[(</span><span class="n">f</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">f</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">valid_features</span><span class="p">],</span>
+            <span class="s2">&quot;conservation&quot;</span><span class="p">:</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">conservation_scores</span><span class="p">[(</span><span class="n">f</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">f</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">valid_features</span><span class="p">],</span>
+        <span class="p">},</span> <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="n">f</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">valid_features</span><span class="p">])</span>
+
+        <span class="n">barcodes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">raw_tensorlabels</span><span class="p">[</span><span class="s2">&quot;cols&quot;</span><span class="p">]</span>
+
+        <span class="n">species_map</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">type_map</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">species</span><span class="p">,</span> <span class="n">ann</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">bc</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">ann</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">full_bc</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">bc</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">species_map</span><span class="p">[</span><span class="n">full_bc</span><span class="p">]</span> <span class="o">=</span> <span class="n">species</span>
+                <span class="n">type_map</span><span class="p">[</span><span class="n">full_bc</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+
+        <span class="n">obs_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+            <span class="s2">&quot;species&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">species_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">bc</span><span class="p">,</span> <span class="s2">&quot;unknown&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">bc</span> <span class="ow">in</span> <span class="n">barcodes</span><span class="p">],</span>
+            <span class="s2">&quot;cell_type&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">type_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">bc</span><span class="p">,</span> <span class="s2">&quot;unknown&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">bc</span> <span class="ow">in</span> <span class="n">barcodes</span><span class="p">]</span>
+        <span class="p">},</span> <span class="n">index</span><span class="o">=</span><span class="n">barcodes</span><span class="p">)</span>
+
+        <span class="n">adata</span> <span class="o">=</span> <span class="n">ad</span><span class="o">.</span><span class="n">AnnData</span><span class="p">(</span><span class="n">X</span><span class="o">=</span><span class="n">X_selected</span><span class="p">,</span> <span class="n">obs</span><span class="o">=</span><span class="n">obs_df</span><span class="p">,</span> <span class="n">var</span><span class="o">=</span><span class="n">var_df</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">adata</span></div>
+
+
+<div class="viewcode-block" id="CSHint_integration.prepare_for_integration">
+<a class="viewcode-back" href="../modules/CSHint_integration.html#CSHint_integration.CSHint_integration.prepare_for_integration">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">prepare_for_integration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_components</span><span class="o">=</span><span class="mi">50</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the AnnData object and PCA embedding consumed by :meth:`optimize`.</span>
+
+<span class="sd">        Runs total-count normalisation to 10,000 counts per cell, ``log1p``, unit scaling</span>
+<span class="sd">        clipped at 10 standard deviations, then PCA. Also classifies cell types, which</span>
+<span class="sd">        populates ``self.pair_anchors`` as a side effect on the instance even though the</span>
+<span class="sd">        returned object is not stored.</span>
+
+<span class="sd">        :param n_components: Number of principal components to compute. Must not exceed</span>
+<span class="sd">            ``min(n_cells, n_features)``.</span>
+<span class="sd">        :type n_components: int</span>
+<span class="sd">        :returns: Preprocessed data with the embedding in ``obsm[&quot;X_pca&quot;]``.</span>
+<span class="sd">        :rtype: anndata.AnnData</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">adata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_anndata</span><span class="p">()</span>
+        <span class="n">sc</span><span class="o">.</span><span class="n">pp</span><span class="o">.</span><span class="n">normalize_total</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">target_sum</span><span class="o">=</span><span class="mf">1e4</span><span class="p">)</span>
+        <span class="n">sc</span><span class="o">.</span><span class="n">pp</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="n">adata</span><span class="p">)</span>
+        <span class="n">sc</span><span class="o">.</span><span class="n">pp</span><span class="o">.</span><span class="n">scale</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+        <span class="n">sc</span><span class="o">.</span><span class="n">tl</span><span class="o">.</span><span class="n">pca</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">n_comps</span><span class="o">=</span><span class="n">n_components</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_classify_cell_types</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">adata</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_classify_cell_types</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">species_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">n_species</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">species_list</span><span class="p">)</span>
+
+        <span class="n">all_cell_types</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">ann</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">all_cell_types</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">ann</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">cell_type_species</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">ct</span><span class="p">:</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">species_list</span> <span class="k">if</span> <span class="n">ct</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">[</span><span class="n">s</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()]</span>
+            <span class="k">for</span> <span class="n">ct</span> <span class="ow">in</span> <span class="n">all_cell_types</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Global anchor classifications (kept for reference / reporting)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">full_anchors</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">ct</span> <span class="k">for</span> <span class="n">ct</span><span class="p">,</span> <span class="n">sps</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_type_species</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sps</span><span class="p">)</span> <span class="o">==</span> <span class="n">n_species</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">partial_anchors</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">ct</span> <span class="k">for</span> <span class="n">ct</span><span class="p">,</span> <span class="n">sps</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_type_species</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="mi">1</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">sps</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">n_species</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unique_cell_types</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">ct</span> <span class="k">for</span> <span class="n">ct</span><span class="p">,</span> <span class="n">sps</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_type_species</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">sps</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="p">]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reference_species</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">reference_species</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span>
+                <span class="n">species_list</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">[</span><span class="n">s</span><span class="p">])</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Per-pair anchors: for each target species, cell types shared with reference</span>
+        <span class="n">ref</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reference_species</span>
+        <span class="n">ref_cell_types</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">[</span><span class="n">ref</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pair_anchors</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">species_list</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">s</span> <span class="o">==</span> <span class="n">ref</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">target_cell_types</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">[</span><span class="n">s</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
+            <span class="n">shared</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">ref_cell_types</span> <span class="o">&amp;</span> <span class="n">target_cell_types</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pair_anchors</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="o">=</span> <span class="n">shared</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Reference species: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">reference_species</span><span class="si">}</span><span class="s2"> &quot;</span>
+              <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">reference_species</span><span class="p">]</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span><span class="si">}</span><span class="s2"> cell types)&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Full anchors (all species): </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">full_anchors</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Partial anchors: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">partial_anchors</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Unique cell types: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unique_cell_types</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">anchors</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pair_anchors</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">ref</span><span class="si">}</span><span class="s2"> &lt;-&gt; </span><span class="si">{</span><span class="n">s</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">anchors</span><span class="p">)</span><span class="si">}</span><span class="s2"> shared cell types &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">anchors</span><span class="p">[:</span><span class="mi">5</span><span class="p">])</span><span class="si">}{</span><span class="s1">&#39;...&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">anchors</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;&#39;</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_precompute_anchor_candidates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adata</span><span class="p">,</span> <span class="n">X_ranked</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                      <span class="n">cell_type_agnostic</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
+                                      <span class="n">min_anchor_weight</span><span class="o">=</span><span class="mf">0.3</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute and cache ranked anchor candidate pairs for every non-reference</span>
+<span class="sd">        species. Populates ``self.anchor_candidates``; read-only thereafter.&quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Precomputing anchor candidates...&quot;</span><span class="p">)</span>
+
+        <span class="n">X_pca</span> <span class="o">=</span> <span class="n">adata</span><span class="o">.</span><span class="n">obsm</span><span class="p">[</span><span class="s2">&quot;X_pca&quot;</span><span class="p">]</span>
+        <span class="n">species_labels</span> <span class="o">=</span> <span class="n">adata</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">&quot;species&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+        <span class="n">cell_type_labels</span> <span class="o">=</span> <span class="n">adata</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">&quot;cell_type&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+        <span class="n">ref</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reference_species</span>
+        <span class="n">species_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+
+        <span class="k">if</span> <span class="n">X_ranked</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">X_ranked</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">apply_along_axis</span><span class="p">(</span><span class="n">rankdata</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">X_pca</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">X_ranked</span> <span class="o">-=</span> <span class="n">X_ranked</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">norms</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">X_ranked</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">norms</span><span class="p">[</span><span class="n">norms</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
+            <span class="n">X_ranked</span> <span class="o">/=</span> <span class="n">norms</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">anchor_candidates</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">anchor_cell_types</span> <span class="o">=</span> <span class="n">cell_type_labels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">anchor_species_labels</span> <span class="o">=</span> <span class="n">species_labels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_anchor_weight</span> <span class="o">=</span> <span class="n">min_anchor_weight</span>
+
+        <span class="k">for</span> <span class="n">s_target</span> <span class="ow">in</span> <span class="n">species_list</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">s_target</span> <span class="o">==</span> <span class="n">ref</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">all_ref</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">all_target</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">all_w</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="k">if</span> <span class="n">cell_type_agnostic</span><span class="p">:</span>
+                <span class="n">ref_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">species_labels</span> <span class="o">==</span> <span class="n">ref</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">target_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">species_labels</span> <span class="o">==</span> <span class="n">s_target</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ref_idx</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_idx</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="n">X_ref</span> <span class="o">=</span> <span class="n">X_ranked</span><span class="p">[</span><span class="n">ref_idx</span><span class="p">]</span>
+                <span class="n">X_target</span> <span class="o">=</span> <span class="n">X_ranked</span><span class="p">[</span><span class="n">target_idx</span><span class="p">]</span>
+                <span class="n">ws</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">ref_idx</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_idx</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">start</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ref_idx</span><span class="p">),</span> <span class="n">chunk_size</span><span class="p">):</span>
+                    <span class="n">end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">start</span> <span class="o">+</span> <span class="n">chunk_size</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ref_idx</span><span class="p">))</span>
+                    <span class="n">ws</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span> <span class="o">=</span> <span class="n">X_ref</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span> <span class="o">@</span> <span class="n">X_target</span><span class="o">.</span><span class="n">T</span>
+
+                <span class="n">all_ref</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">ref_idx</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_idx</span><span class="p">)))</span>
+                <span class="n">all_target</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">target_idx</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ref_idx</span><span class="p">)))</span>
+                <span class="n">all_w</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ws</span><span class="o">.</span><span class="n">ravel</span><span class="p">())</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pair_shared</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pair_anchors</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">s_target</span><span class="p">,</span> <span class="p">[])</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">pair_shared</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Skipping </span><span class="si">{</span><span class="n">s_target</span><span class="si">}</span><span class="s2"> — no shared cell types with </span><span class="si">{</span><span class="n">ref</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="k">continue</span>
+
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Running cell-type-aware anchor selection: &quot;</span>
+                      <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">ref</span><span class="si">}</span><span class="s2"> &lt;-&gt; </span><span class="si">{</span><span class="n">s_target</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">pair_shared</span><span class="p">)</span><span class="si">}</span><span class="s2"> shared types)&quot;</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">cell_type</span> <span class="ow">in</span> <span class="n">pair_shared</span><span class="p">:</span>
+                    <span class="n">ref_ct_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                        <span class="p">(</span><span class="n">species_labels</span> <span class="o">==</span> <span class="n">ref</span><span class="p">)</span> <span class="o">&amp;</span>
+                        <span class="p">(</span><span class="n">cell_type_labels</span> <span class="o">==</span> <span class="n">cell_type</span><span class="p">)</span>
+                    <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">target_ct_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                        <span class="p">(</span><span class="n">species_labels</span> <span class="o">==</span> <span class="n">s_target</span><span class="p">)</span> <span class="o">&amp;</span>
+                        <span class="p">(</span><span class="n">cell_type_labels</span> <span class="o">==</span> <span class="n">cell_type</span><span class="p">)</span>
+                    <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ref_ct_idx</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_ct_idx</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="k">continue</span>
+
+                    <span class="n">X_ref</span> <span class="o">=</span> <span class="n">X_ranked</span><span class="p">[</span><span class="n">ref_ct_idx</span><span class="p">]</span>
+                    <span class="n">X_target</span> <span class="o">=</span> <span class="n">X_ranked</span><span class="p">[</span><span class="n">target_ct_idx</span><span class="p">]</span>
+                    <span class="n">ws</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span>
+                        <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ref_ct_idx</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_ct_idx</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span>
+                    <span class="p">)</span>
+                    <span class="k">for</span> <span class="n">start</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ref_ct_idx</span><span class="p">),</span> <span class="n">chunk_size</span><span class="p">):</span>
+                        <span class="n">end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">start</span> <span class="o">+</span> <span class="n">chunk_size</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ref_ct_idx</span><span class="p">))</span>
+                        <span class="n">ws</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span> <span class="o">=</span> <span class="n">X_ref</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span> <span class="o">@</span> <span class="n">X_target</span><span class="o">.</span><span class="n">T</span>
+
+                    <span class="n">all_ref</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">ref_ct_idx</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_ct_idx</span><span class="p">)))</span>
+                    <span class="n">all_target</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">target_ct_idx</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">ref_ct_idx</span><span class="p">)))</span>
+                    <span class="n">all_w</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ws</span><span class="o">.</span><span class="n">ravel</span><span class="p">())</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">all_ref</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Skipping </span><span class="si">{</span><span class="n">s_target</span><span class="si">}</span><span class="s2"> — no eligible cell type overlaps&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="n">ref_flat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">all_ref</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+            <span class="n">target_flat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">all_target</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+            <span class="n">ws_flat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">all_w</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+            <span class="n">keep</span> <span class="o">=</span> <span class="n">ws_flat</span> <span class="o">&gt;=</span> <span class="n">min_anchor_weight</span>
+            <span class="n">ref_flat</span> <span class="o">=</span> <span class="n">ref_flat</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span>
+            <span class="n">target_flat</span> <span class="o">=</span> <span class="n">target_flat</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span>
+            <span class="n">ws_flat</span> <span class="o">=</span> <span class="n">ws_flat</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ws_flat</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Skipping </span><span class="si">{</span><span class="n">s_target</span><span class="si">}</span><span class="s2"> — no pairs above min_anchor_weight&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="n">order</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="o">-</span><span class="n">ws_flat</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">anchor_candidates</span><span class="p">[</span><span class="n">s_target</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">ref_flat</span><span class="p">[</span><span class="n">order</span><span class="p">],</span>
+                <span class="n">target_flat</span><span class="p">[</span><span class="n">order</span><span class="p">],</span>
+                <span class="n">ws_flat</span><span class="p">[</span><span class="n">order</span><span class="p">],</span>
+            <span class="p">)</span>
+
+            <span class="n">n_shared</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pair_anchors</span><span class="p">[</span><span class="n">s_target</span><span class="p">])</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="n">cell_type_agnostic</span> <span class="k">else</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">ref</span><span class="si">}</span><span class="s2"> x </span><span class="si">{</span><span class="n">s_target</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">order</span><span class="p">)</span><span class="si">}</span><span class="s2"> candidates across &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">n_shared</span><span class="si">}</span><span class="s2"> shared cell types | &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;weight range: [</span><span class="si">{</span><span class="n">ws_flat</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">ws_flat</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  Anchor candidates precomputed.&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_anchors</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_anchors_target</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">cell_type_agnostic</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                       <span class="n">min_anchor_weight</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Greedily match cached candidates into a mutually exclusive anchor set.</span>
+
+<span class="sd">        Returns the anchor list rather than mutating ``self`` so that concurrent</span>
+<span class="sd">        Optuna trials cannot interfere with one another.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;anchor_candidates&quot;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Call _precompute_anchor_candidates() before _build_anchors().&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">cell_type_labels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">anchor_cell_types</span>
+        <span class="n">n_cells</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">anchor_species_labels</span><span class="p">)</span>
+        <span class="n">min_w</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">min_anchor_weight</span><span class="p">)</span> <span class="k">if</span> <span class="n">min_anchor_weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+        <span class="n">anchors_all</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">s_target</span><span class="p">,</span> <span class="p">(</span><span class="n">ref_sorted</span><span class="p">,</span> <span class="n">target_sorted</span><span class="p">,</span> <span class="n">ws_sorted</span><span class="p">)</span> <span class="ow">in</span> \
+                <span class="bp">self</span><span class="o">.</span><span class="n">anchor_candidates</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+
+            <span class="n">matched_ref</span><span class="p">,</span> <span class="n">matched_target</span><span class="p">,</span> <span class="n">matched_w</span> <span class="o">=</span> <span class="n">_greedy_matching</span><span class="p">(</span>
+                <span class="n">ref_sorted</span><span class="p">,</span> <span class="n">target_sorted</span><span class="p">,</span> <span class="n">ws_sorted</span><span class="p">,</span>
+                <span class="n">n_anchors_target</span><span class="p">,</span> <span class="n">min_w</span><span class="p">,</span> <span class="n">n_cells</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">n_found</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">matched_ref</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">n_found</span> <span class="o">&lt;</span> <span class="n">n_anchors_target</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">s_target</span><span class="si">}</span><span class="s2">: only </span><span class="si">{</span><span class="n">n_found</span><span class="si">}</span><span class="s2"> anchors available &quot;</span>
+                      <span class="sa">f</span><span class="s2">&quot;(requested </span><span class="si">{</span><span class="n">n_anchors_target</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+            <span class="n">anchors</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;reference_cell&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">ri</span><span class="p">),</span>
+                    <span class="s2">&quot;target_cell&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">ti</span><span class="p">),</span>
+                    <span class="s2">&quot;target_species&quot;</span><span class="p">:</span> <span class="n">s_target</span><span class="p">,</span>
+                    <span class="s2">&quot;cell_type&quot;</span><span class="p">:</span> <span class="n">cell_type_labels</span><span class="p">[</span><span class="n">ri</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">cell_type_agnostic</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="s2">&quot;weight&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">w</span><span class="p">),</span>
+                <span class="p">}</span>
+                <span class="k">for</span> <span class="n">ri</span><span class="p">,</span> <span class="n">ti</span><span class="p">,</span> <span class="n">w</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">matched_ref</span><span class="p">,</span> <span class="n">matched_target</span><span class="p">,</span> <span class="n">matched_w</span><span class="p">)</span>
+            <span class="p">]</span>
+
+            <span class="n">anchors_all</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">anchors</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">anchors</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">s_target</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">anchors</span><span class="p">)</span><span class="si">}</span><span class="s2"> anchors | &quot;</span>
+                      <span class="sa">f</span><span class="s2">&quot;mean weight: </span><span class="si">{</span><span class="n">matched_w</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">anchors_all</span><span class="p">)</span><span class="si">}</span><span class="s2"> total anchors &quot;</span>
+              <span class="sa">f</span><span class="s2">&quot;across </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">anchor_candidates</span><span class="p">)</span><span class="si">}</span><span class="s2"> species pairs&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">anchors_all</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fit_tps_correction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adata</span><span class="p">,</span> <span class="n">anchors</span><span class="p">,</span> <span class="n">regularisation</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit and apply a per-species thin-plate-spline warp onto the reference</span>
+<span class="sd">        embedding, using ``anchors`` as control points. Mutates ``adata.obsm``.&quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Fitting TPS correction (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">anchors</span><span class="p">)</span><span class="si">}</span><span class="s2"> control points)...&quot;</span><span class="p">)</span>
+
+        <span class="n">X_pca</span> <span class="o">=</span> <span class="n">adata</span><span class="o">.</span><span class="n">obsm</span><span class="p">[</span><span class="s2">&quot;X_pca&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">n_cells</span><span class="p">,</span> <span class="n">n_components</span> <span class="o">=</span> <span class="n">X_pca</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">species_labels</span> <span class="o">=</span> <span class="n">adata</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">&quot;species&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+        <span class="n">ref</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">reference_species</span>
+        <span class="n">X_pca_corrected</span> <span class="o">=</span> <span class="n">X_pca</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">tps_kernel</span><span class="p">(</span><span class="n">D_sq</span><span class="p">):</span>
+            <span class="k">with</span> <span class="n">np</span><span class="o">.</span><span class="n">errstate</span><span class="p">(</span><span class="n">divide</span><span class="o">=</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">invalid</span><span class="o">=</span><span class="s2">&quot;ignore&quot;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">D_sq</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">D_sq</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">D_sq</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-10</span><span class="p">))</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">sq_distance_matrix</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">B</span><span class="p">):</span>
+            <span class="n">A_sq</span> <span class="o">=</span> <span class="p">(</span><span class="n">A</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">B_sq</span> <span class="o">=</span> <span class="p">(</span><span class="n">B</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">A_sq</span> <span class="o">+</span> <span class="n">B_sq</span><span class="o">.</span><span class="n">T</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">A</span> <span class="o">@</span> <span class="n">B</span><span class="o">.</span><span class="n">T</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">target_species</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">target_species</span> <span class="o">==</span> <span class="n">ref</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">species_anchors</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">a</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">anchors</span>
+                <span class="k">if</span> <span class="n">a</span><span class="p">[</span><span class="s2">&quot;target_species&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">target_species</span>
+            <span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">species_anchors</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  No anchors for </span><span class="si">{</span><span class="n">target_species</span><span class="si">}</span><span class="s2">, skipping&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Fitting TPS for </span><span class="si">{</span><span class="n">target_species</span><span class="si">}</span><span class="s2"> &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">species_anchors</span><span class="p">)</span><span class="si">}</span><span class="s2"> control points)...&quot;</span><span class="p">)</span>
+
+            <span class="n">source_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">X_pca</span><span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="s2">&quot;target_cell&quot;</span><span class="p">]]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">species_anchors</span><span class="p">],</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span>
+            <span class="p">)</span>
+            <span class="n">target_points</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">X_pca</span><span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="s2">&quot;reference_cell&quot;</span><span class="p">]]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">species_anchors</span><span class="p">],</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span>
+            <span class="p">)</span>
+
+            <span class="n">n_anchors</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">species_anchors</span><span class="p">)</span>
+
+            <span class="n">D_sq</span> <span class="o">=</span> <span class="n">sq_distance_matrix</span><span class="p">(</span><span class="n">source_points</span><span class="p">,</span> <span class="n">source_points</span><span class="p">)</span>
+            <span class="n">K</span> <span class="o">=</span> <span class="n">tps_kernel</span><span class="p">(</span><span class="n">D_sq</span><span class="p">)</span> <span class="o">+</span> <span class="n">regularisation</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">n_anchors</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">P</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">n_anchors</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">source_points</span>
+            <span class="p">])</span>
+            <span class="n">n_affine</span> <span class="o">=</span> <span class="n">n_components</span> <span class="o">+</span> <span class="mi">1</span>
+
+            <span class="n">system</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">K</span><span class="p">,</span> <span class="n">P</span><span class="p">]),</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">P</span><span class="o">.</span><span class="n">T</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_affine</span><span class="p">,</span> <span class="n">n_affine</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)])</span>
+            <span class="p">])</span>
+            <span class="n">rhs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span>
+                <span class="n">target_points</span><span class="p">,</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_affine</span><span class="p">,</span> <span class="n">n_components</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="p">])</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">coeffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">rhs</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">LinAlgError</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    Warning: TPS solve failed for </span><span class="si">{</span><span class="n">target_species</span><span class="si">}</span><span class="s2">, &quot;</span>
+                      <span class="sa">f</span><span class="s2">&quot;falling back to least squares&quot;</span><span class="p">)</span>
+                <span class="n">coeffs</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">lstsq</span><span class="p">(</span><span class="n">system</span><span class="p">,</span> <span class="n">rhs</span><span class="p">,</span> <span class="n">rcond</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+            <span class="n">w</span> <span class="o">=</span> <span class="n">coeffs</span><span class="p">[:</span><span class="n">n_anchors</span><span class="p">]</span>
+            <span class="n">a</span> <span class="o">=</span> <span class="n">coeffs</span><span class="p">[</span><span class="n">n_anchors</span><span class="p">:]</span>
+
+            <span class="n">species_mask</span> <span class="o">=</span> <span class="n">species_labels</span> <span class="o">==</span> <span class="n">target_species</span>
+            <span class="n">X_species</span> <span class="o">=</span> <span class="n">X_pca</span><span class="p">[</span><span class="n">species_mask</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">n_species_cells</span> <span class="o">=</span> <span class="n">X_species</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">chunk_size</span> <span class="o">=</span> <span class="mi">1024</span>
+
+            <span class="n">X_corrected_species</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">X_species</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">start</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">n_species_cells</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">):</span>
+                <span class="n">end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">start</span> <span class="o">+</span> <span class="n">chunk_size</span><span class="p">,</span> <span class="n">n_species_cells</span><span class="p">)</span>
+                <span class="n">X_chunk</span> <span class="o">=</span> <span class="n">X_species</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span>
+                <span class="n">D_sq_chunk</span> <span class="o">=</span> <span class="n">sq_distance_matrix</span><span class="p">(</span><span class="n">X_chunk</span><span class="p">,</span> <span class="n">source_points</span><span class="p">)</span>
+                <span class="n">K_chunk</span> <span class="o">=</span> <span class="n">tps_kernel</span><span class="p">(</span><span class="n">D_sq_chunk</span><span class="p">)</span>
+                <span class="n">P_chunk</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">end</span> <span class="o">-</span> <span class="n">start</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span> <span class="n">X_chunk</span>
+                <span class="p">])</span>
+                <span class="n">X_corrected_species</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span> <span class="o">=</span> <span class="n">K_chunk</span> <span class="o">@</span> <span class="n">w</span> <span class="o">+</span> <span class="n">P_chunk</span> <span class="o">@</span> <span class="n">a</span>
+
+            <span class="n">X_pca_corrected</span><span class="p">[</span><span class="n">species_mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">X_corrected_species</span>
+
+            <span class="n">anchor_source_globals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="s2">&quot;target_cell&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">species_anchors</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">species_global_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">species_mask</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">local_positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span><span class="n">species_global_indices</span><span class="p">,</span>
+                                              <span class="n">anchor_source_globals</span><span class="p">)</span>
+            <span class="n">corrected_anchors</span> <span class="o">=</span> <span class="n">X_corrected_species</span><span class="p">[</span><span class="n">local_positions</span><span class="p">]</span>
+            <span class="n">mean_dist</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span>
+                <span class="p">((</span><span class="n">corrected_anchors</span> <span class="o">-</span> <span class="n">target_points</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;    Mean post-correction distance to target: </span><span class="si">{</span><span class="n">mean_dist</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">adata</span><span class="o">.</span><span class="n">obsm</span><span class="p">[</span><span class="s2">&quot;X_pca_tps&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">X_pca_corrected</span>
+        <span class="n">adata</span><span class="o">.</span><span class="n">obsm</span><span class="p">[</span><span class="s2">&quot;X_pca&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">X_pca_corrected</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;  TPS correction complete&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">adata</span>
+
+<div class="viewcode-block" id="CSHint_integration.integrate">
+<a class="viewcode-back" href="../modules/CSHint_integration.html#CSHint_integration.CSHint_integration.integrate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">integrate</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">adata_pca</span><span class="p">,</span>
+            <span class="n">n_trials</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+            <span class="n">n_jobs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+            <span class="n">metric_weights</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">regularisation</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+            <span class="n">cell_type_agnostic</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">min_anchor_weight</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Optimise ``n_anchors_target`` for TPS-based cross-species integration.</span>
+
+<span class="sd">        Anchor candidate correlations are computed once up front and shared read-only</span>
+<span class="sd">        across trials; each trial then runs only the greedy match, the TPS warp and the</span>
+<span class="sd">        scib metrics. Anchors pass between those stages by value, so trials stay</span>
+<span class="sd">        independent when ``n_jobs &gt; 1``. Once the study completes, anchors are rebuilt</span>
+<span class="sd">        with the winning parameters and the correction is applied to ``adata_pca`` in</span>
+<span class="sd">        place, leaving ``self.anchors`` and ``self.best_params`` in agreement with it.</span>
+
+<span class="sd">        Scored metrics are ARI, NMI and graph connectivity;</span>
+
+<span class="sd">        :param adata_pca: Data carrying an uncorrected ``obsm[&quot;X_pca&quot;]`` plus</span>
+<span class="sd">            ``obs[&quot;species&quot;]`` and ``obs[&quot;cell_type&quot;]``. Modified in place once the study</span>
+<span class="sd">            has finished.</span>
+<span class="sd">        :type adata_pca: anndata.AnnData</span>
+<span class="sd">        :param n_trials: Number of Optuna trials to run.</span>
+<span class="sd">        :type n_trials: int</span>
+<span class="sd">        :param n_jobs: Number of trials to run concurrently.</span>
+<span class="sd">        :type n_jobs: int</span>
+<span class="sd">        :param random_state: Seed for the TPE sampler, the neighbour graph and Leiden.</span>
+<span class="sd">        :type random_state: int</span>
+<span class="sd">        :param metric_weights: Weights keyed by ``&quot;ari&quot;``, ``&quot;nmi&quot;`` and</span>
+<span class="sd">            ``&quot;graph_connectivity&quot;``, normalised to sum to one. Defaults to</span>
+<span class="sd">            ``{&quot;ari&quot;: 0.4, &quot;nmi&quot;: 0.2, &quot;graph_connectivity&quot;: 0.4}``.</span>
+<span class="sd">        :type metric_weights: dict[str, float] or None</span>
+<span class="sd">        :param regularisation: Ridge term on the TPS kernel diagonal. Fixed across trials</span>
+<span class="sd">            rather than optimised.</span>
+<span class="sd">        :type regularisation: float</span>
+<span class="sd">        :param cell_type_agnostic: If True, match anchors across the whole species pair</span>
+<span class="sd">            rather than within shared cell types.</span>
+<span class="sd">        :type cell_type_agnostic: bool</span>
+<span class="sd">        :param min_anchor_weight: Minimum rank correlation for a candidate pair to be</span>
+<span class="sd">            retained during precomputation.</span>
+<span class="sd">        :type min_anchor_weight: float</span>
+<span class="sd">        :returns: The corrected anndata object, the completed study and its best parameter dictionary.</span>
+<span class="sd">        :rtype: tuple[adata, ptuna.study.Study, dict]</span>
+<span class="sd">        :raises ValueError: If :meth:`_classify_cell_types` has not been run, or if fewer</span>
+<span class="sd">            than two shared cell types exist across all species pairs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">scib</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;pair_anchors&quot;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;_classify_cell_types() must be run before optimize().&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">metric_weights</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">metric_weights</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;ari&quot;</span><span class="p">:</span> <span class="mf">0.4</span><span class="p">,</span>
+                <span class="s2">&quot;nmi&quot;</span><span class="p">:</span> <span class="mf">0.2</span><span class="p">,</span>
+                <span class="s2">&quot;graph_connectivity&quot;</span><span class="p">:</span> <span class="mf">0.4</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="n">total_w</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">metric_weights</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">metric_weights</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="o">/</span> <span class="n">total_w</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">metric_weights</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+        <span class="c1"># Evaluate against the union of all per-pair shared cell types.</span>
+        <span class="n">all_pair_anchor_types</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">shared</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pair_anchors</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">all_pair_anchor_types</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">shared</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_pair_anchor_types</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Need at least 2 shared cell types across pairs, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">all_pair_anchor_types</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">cell_type_labels</span> <span class="o">=</span> <span class="n">adata_pca</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">&quot;cell_type&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+        <span class="n">anchor_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">ct</span> <span class="ow">in</span> <span class="n">all_pair_anchor_types</span> <span class="k">for</span> <span class="n">ct</span> <span class="ow">in</span> <span class="n">cell_type_labels</span><span class="p">])</span>
+        <span class="n">true_labels_anchor</span> <span class="o">=</span> <span class="n">cell_type_labels</span><span class="p">[</span><span class="n">anchor_mask</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_precompute_anchor_candidates</span><span class="p">(</span>
+            <span class="n">adata_pca</span><span class="p">,</span>
+            <span class="n">cell_type_agnostic</span><span class="o">=</span><span class="n">cell_type_agnostic</span><span class="p">,</span>
+            <span class="n">min_anchor_weight</span><span class="o">=</span><span class="n">min_anchor_weight</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Smallest unique-cell count across all pairs bounds the search.</span>
+        <span class="n">max_anchors</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
+            <span class="nb">min</span><span class="p">(</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">ref_sorted</span><span class="p">)),</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">target_sorted</span><span class="p">))</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">ref_sorted</span><span class="p">,</span> <span class="n">target_sorted</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">anchor_candidates</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+        <span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;  Optimizing over </span><span class="si">{</span><span class="n">n_trials</span><span class="si">}</span><span class="s2"> trials</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;  Parameter: n_anchors_target in [10, </span><span class="si">{</span><span class="n">max_anchors</span><span class="si">}</span><span class="s2">]</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;  Regularisation fixed at </span><span class="si">{</span><span class="n">regularisation</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;  Metric weights: </span><span class="si">{</span><span class="n">metric_weights</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">objective</span><span class="p">(</span><span class="n">trial</span><span class="p">):</span>
+            <span class="n">n_anchors_target</span> <span class="o">=</span> <span class="n">trial</span><span class="o">.</span><span class="n">suggest_int</span><span class="p">(</span><span class="s2">&quot;n_anchors_target&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">max_anchors</span><span class="p">)</span>
+            <span class="n">adata_work</span> <span class="o">=</span> <span class="n">adata_pca</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">anchors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_anchors</span><span class="p">(</span>
+                    <span class="n">n_anchors_target</span><span class="o">=</span><span class="n">n_anchors_target</span><span class="p">,</span>
+                    <span class="n">cell_type_agnostic</span><span class="o">=</span><span class="n">cell_type_agnostic</span><span class="p">,</span>
+                <span class="p">)</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">anchors</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">optuna</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">TrialPruned</span><span class="p">(</span><span class="s2">&quot;No anchors selected.&quot;</span><span class="p">)</span>
+
+                <span class="n">adata_work</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit_tps_correction</span><span class="p">(</span>
+                    <span class="n">adata_work</span><span class="p">,</span> <span class="n">anchors</span><span class="p">,</span> <span class="n">regularisation</span><span class="o">=</span><span class="n">regularisation</span>
+                <span class="p">)</span>
+
+                <span class="n">sc</span><span class="o">.</span><span class="n">pp</span><span class="o">.</span><span class="n">neighbors</span><span class="p">(</span><span class="n">adata_work</span><span class="p">,</span> <span class="n">use_rep</span><span class="o">=</span><span class="s2">&quot;X_pca&quot;</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">)</span>
+                <span class="n">sc</span><span class="o">.</span><span class="n">tl</span><span class="o">.</span><span class="n">leiden</span><span class="p">(</span><span class="n">adata_work</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">)</span>
+
+                <span class="n">adata_work</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">&quot;cell_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">adata_work</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">&quot;cell_type&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;category&quot;</span><span class="p">)</span>
+                <span class="n">adata_work</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">&quot;species&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">adata_work</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">&quot;species&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;category&quot;</span><span class="p">)</span>
+                <span class="n">adata_work</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">&quot;leiden&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">adata_work</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">&quot;leiden&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;category&quot;</span><span class="p">)</span>
+
+                <span class="n">cluster_labels</span> <span class="o">=</span> <span class="n">adata_work</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">&quot;leiden&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span>
+                <span class="n">predicted_anchor</span> <span class="o">=</span> <span class="n">cluster_labels</span><span class="p">[</span><span class="n">anchor_mask</span><span class="p">]</span>
+
+                <span class="n">scores</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="s2">&quot;ari&quot;</span><span class="p">:</span> <span class="n">adjusted_rand_score</span><span class="p">(</span>
+                        <span class="n">true_labels_anchor</span><span class="p">,</span> <span class="n">predicted_anchor</span>
+                    <span class="p">),</span>
+                    <span class="s2">&quot;nmi&quot;</span><span class="p">:</span> <span class="n">normalized_mutual_info_score</span><span class="p">(</span>
+                        <span class="n">true_labels_anchor</span><span class="p">,</span> <span class="n">predicted_anchor</span><span class="p">,</span>
+                        <span class="n">average_method</span><span class="o">=</span><span class="s2">&quot;arithmetic&quot;</span><span class="p">,</span>
+                    <span class="p">),</span>
+                    <span class="s2">&quot;graph_connectivity&quot;</span><span class="p">:</span> <span class="n">scib</span><span class="o">.</span><span class="n">me</span><span class="o">.</span><span class="n">graph_connectivity</span><span class="p">(</span>
+                        <span class="n">adata_work</span><span class="p">,</span> <span class="n">label_key</span><span class="o">=</span><span class="s2">&quot;cell_type&quot;</span>
+                    <span class="p">),</span>
+                <span class="p">}</span>
+
+                <span class="n">weighted_score</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span>
+                    <span class="n">metric_weights</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span> <span class="o">*</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">scores</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">scores</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="n">trial</span><span class="o">.</span><span class="n">set_user_attr</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">))</span>
+                <span class="n">trial</span><span class="o">.</span><span class="n">set_user_attr</span><span class="p">(</span><span class="s2">&quot;weighted_score&quot;</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">weighted_score</span><span class="p">))</span>
+                <span class="n">trial</span><span class="o">.</span><span class="n">set_user_attr</span><span class="p">(</span><span class="s2">&quot;n_anchors&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">anchors</span><span class="p">))</span>
+
+            <span class="k">except</span> <span class="n">optuna</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">TrialPruned</span><span class="p">:</span>
+                <span class="k">raise</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="kn">import</span><span class="w"> </span><span class="nn">traceback</span>
+                <span class="n">traceback</span><span class="o">.</span><span class="n">print_exc</span><span class="p">()</span>
+                <span class="k">raise</span> <span class="n">optuna</span><span class="o">.</span><span class="n">exceptions</span><span class="o">.</span><span class="n">TrialPruned</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Trial failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">weighted_score</span>
+
+        <span class="n">sampler</span> <span class="o">=</span> <span class="n">optuna</span><span class="o">.</span><span class="n">samplers</span><span class="o">.</span><span class="n">TPESampler</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="n">random_state</span><span class="p">)</span>
+        <span class="n">study</span> <span class="o">=</span> <span class="n">optuna</span><span class="o">.</span><span class="n">create_study</span><span class="p">(</span><span class="n">direction</span><span class="o">=</span><span class="s2">&quot;maximize&quot;</span><span class="p">,</span> <span class="n">sampler</span><span class="o">=</span><span class="n">sampler</span><span class="p">)</span>
+        <span class="n">study</span><span class="o">.</span><span class="n">optimize</span><span class="p">(</span>
+            <span class="n">objective</span><span class="p">,</span> <span class="n">n_trials</span><span class="o">=</span><span class="n">n_trials</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">,</span> <span class="n">show_progress_bar</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">best_params</span> <span class="o">=</span> <span class="n">study</span><span class="o">.</span><span class="n">best_params</span>
+
+        <span class="n">best</span> <span class="o">=</span> <span class="n">study</span><span class="o">.</span><span class="n">best_trial</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  Best weighted score: </span><span class="si">{</span><span class="n">study</span><span class="o">.</span><span class="n">best_value</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Best params:         </span><span class="si">{</span><span class="n">study</span><span class="o">.</span><span class="n">best_params</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  n_anchors:           </span><span class="si">{</span><span class="n">best</span><span class="o">.</span><span class="n">user_attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;n_anchors&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Individual scores:   &quot;</span>
+              <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="w"> </span><span class="p">{</span><span class="n">k</span><span class="p">:</span><span class="w"> </span><span class="nb">round</span><span class="p">(</span><span class="n">best</span><span class="o">.</span><span class="n">user_attrs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">),</span><span class="w"> </span><span class="mi">4</span><span class="p">)</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">metric_weights</span><span class="p">}</span><span class="w"> </span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Refit on the winning parameters</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">  Refitting with best parameters...&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">anchors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_anchors</span><span class="p">(</span>
+            <span class="n">n_anchors_target</span><span class="o">=</span><span class="n">study</span><span class="o">.</span><span class="n">best_params</span><span class="p">[</span><span class="s2">&quot;n_anchors_target&quot;</span><span class="p">],</span>
+            <span class="n">cell_type_agnostic</span><span class="o">=</span><span class="n">cell_type_agnostic</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">adata_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit_tps_correction</span><span class="p">(</span>
+            <span class="n">adata_pca</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">anchors</span><span class="p">,</span> <span class="n">regularisation</span><span class="o">=</span><span class="n">regularisation</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">adata_out</span><span class="p">,</span> <span class="n">study</span><span class="p">,</span> <span class="n">study</span><span class="o">.</span><span class="n">best_params</span></div>
+
+
+<div class="viewcode-block" id="CSHint_integration.integrate_no_optimization">
+<a class="viewcode-back" href="../modules/CSHint_integration.html#CSHint_integration.CSHint_integration.integrate_no_optimization">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">integrate_no_optimization</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                  <span class="n">adata</span><span class="p">,</span>
+                  <span class="n">nanchors</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+                  <span class="n">regularisation</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+                  <span class="n">X_ranked</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                  <span class="n">cell_type_agnostic</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                  <span class="n">chunk_size</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
+                  <span class="n">min_anchor_weight</span><span class="o">=</span><span class="mf">0.3</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run anchor selection and TPS correction once, without hyperparameter search.</span>
+
+<span class="sd">        The fixed-parameter counterpart to :meth:`optimize`, for when the anchor count</span>
+<span class="sd">        is already known. Stores the selected anchors on ``self.anchors`` and corrects</span>
+<span class="sd">        ``adata`` in place.</span>
+
+<span class="sd">        :param adata: Data carrying an uncorrected ``obsm[&quot;X_pca&quot;]`` plus</span>
+<span class="sd">            ``obs[&quot;species&quot;]`` and ``obs[&quot;cell_type&quot;]``. Modified in place.</span>
+<span class="sd">        :type adata: anndata.AnnData</span>
+<span class="sd">        :param nanchors: Anchors to select per species pair.</span>
+<span class="sd">        :type nanchors: int</span>
+<span class="sd">        :param regularisation: Ridge term on the TPS kernel diagonal.</span>
+<span class="sd">        :type regularisation: float</span>
+<span class="sd">        :param X_ranked: Precomputed rank-transformed embedding, or ``None`` to compute it.</span>
+<span class="sd">        :type X_ranked: numpy.ndarray or None</span>
+<span class="sd">        :param cell_type_agnostic: If True, match across the whole species pair rather</span>
+<span class="sd">            than within shared cell types.</span>
+<span class="sd">        :type cell_type_agnostic: bool</span>
+<span class="sd">        :param chunk_size: Row block size for the correlation matrix product.</span>
+<span class="sd">        :type chunk_size: int</span>
+<span class="sd">        :param min_anchor_weight: Minimum rank correlation for a pair to be retained.</span>
+<span class="sd">        :type min_anchor_weight: float</span>
+<span class="sd">        :returns: The corrected data.</span>
+<span class="sd">        :rtype: anndata.AnnData</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_precompute_anchor_candidates</span><span class="p">(</span>
+            <span class="n">adata</span><span class="p">,</span>
+            <span class="n">X_ranked</span><span class="o">=</span><span class="n">X_ranked</span><span class="p">,</span>
+            <span class="n">cell_type_agnostic</span><span class="o">=</span><span class="n">cell_type_agnostic</span><span class="p">,</span>
+            <span class="n">chunk_size</span><span class="o">=</span><span class="n">chunk_size</span><span class="p">,</span>
+            <span class="n">min_anchor_weight</span><span class="o">=</span><span class="n">min_anchor_weight</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">anchors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_anchors</span><span class="p">(</span>
+            <span class="n">n_anchors_target</span><span class="o">=</span><span class="n">nanchors</span><span class="p">,</span>
+            <span class="n">cell_type_agnostic</span><span class="o">=</span><span class="n">cell_type_agnostic</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">anchors</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;No anchors selected — try lowering min_anchor_weight.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit_tps_correction</span><span class="p">(</span>
+            <span class="n">adata</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">anchors</span><span class="p">,</span> <span class="n">regularisation</span><span class="o">=</span><span class="n">regularisation</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CSHint_integration.post_integration_correction">
+<a class="viewcode-back" href="../modules/CSHint_integration.html#CSHint_integration.CSHint_integration.post_integration_correction">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">post_integration_correction</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span>
+            <span class="n">adata</span><span class="p">,</span>
+            <span class="n">group_cols</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+            <span class="n">method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;pca&quot;</span><span class="p">,</span>  <span class="c1"># &quot;pca&quot; or &quot;umap&quot;</span>
+            <span class="n">pval_cutoff</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.01</span><span class="p">,</span>
+            <span class="c1"># UMAP generation params — ignored if method=&quot;pca&quot;</span>
+            <span class="n">n_neighbors</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">15</span><span class="p">,</span>
+            <span class="n">min_dist</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+            <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">42</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">sc</span><span class="o">.</span><span class="n">AnnData</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Remove outlier cells per group using robust Mahalanobis distance (MCD estimator)</span>
+<span class="sd">        on either PCA or UMAP coordinates.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        adata       : AnnData object output from CSHint_integration</span>
+<span class="sd">        group_cols  : list of .obs columns to group by e.g. [&quot;species&quot;, &quot;ct&quot;]</span>
+<span class="sd">        method      : &quot;pca&quot; uses .obsm[&quot;X_pca&quot;]; &quot;umap&quot; generates a UMAP first</span>
+<span class="sd">                      then uses .obsm[&quot;X_umap&quot;]</span>
+<span class="sd">        pval_cutoff : chi-squared p-value threshold; cells below this are removed</span>
+<span class="sd">        n_neighbors : (umap only) number of neighbours for sc.pp.neighbors</span>
+<span class="sd">        min_dist    : (umap only) min_dist passed to sc.tl.umap</span>
+<span class="sd">        random_state: (umap only) random seed for reproducibility</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        AnnData with outlier cells removed, plus adata.obs[&quot;_outlier&quot;] bool column</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">adata</span> <span class="o">=</span> <span class="n">adata</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;umap&quot;</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Computing neighbours and UMAP...&quot;</span><span class="p">)</span>
+            <span class="n">sc</span><span class="o">.</span><span class="n">pp</span><span class="o">.</span><span class="n">neighbors</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">use_rep</span><span class="o">=</span><span class="s2">&quot;X_pca&quot;</span><span class="p">,</span> <span class="n">n_neighbors</span><span class="o">=</span><span class="n">n_neighbors</span><span class="p">)</span>
+            <span class="n">sc</span><span class="o">.</span><span class="n">tl</span><span class="o">.</span><span class="n">umap</span><span class="p">(</span><span class="n">adata</span><span class="p">,</span> <span class="n">min_dist</span><span class="o">=</span><span class="n">min_dist</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">)</span>
+            <span class="n">coords_key</span> <span class="o">=</span> <span class="s2">&quot;X_umap&quot;</span>
+        <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;pca&quot;</span><span class="p">:</span>
+            <span class="n">coords_key</span> <span class="o">=</span> <span class="s2">&quot;X_pca&quot;</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;method must be &#39;pca&#39; or &#39;umap&#39;, got &#39;</span><span class="si">{</span><span class="n">method</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+
+        <span class="n">coords_full</span> <span class="o">=</span> <span class="n">adata</span><span class="o">.</span><span class="n">obsm</span><span class="p">[</span><span class="n">coords_key</span><span class="p">]</span>  <span class="c1"># (n_cells, n_dims)</span>
+        <span class="n">n_dims</span> <span class="o">=</span> <span class="n">coords_full</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">obs_df</span> <span class="o">=</span> <span class="n">adata</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="n">group_cols</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1">#Mahalanobis distance</span>
+        <span class="n">is_outlier</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="kc">False</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">adata</span><span class="o">.</span><span class="n">obs_names</span><span class="p">)</span>
+
+        <span class="n">groups</span> <span class="o">=</span> <span class="n">obs_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">group_cols</span><span class="p">,</span> <span class="n">observed</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">group_keys</span><span class="p">,</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">groups</span><span class="o">.</span><span class="n">groups</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">coords_full</span><span class="p">[</span><span class="n">adata</span><span class="o">.</span><span class="n">obs_names</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">idx</span><span class="p">)]</span>
+
+            <span class="n">min_samples</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">5</span> <span class="o">*</span> <span class="n">n_dims</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">min_samples</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping </span><span class="si">{</span><span class="n">group_keys</span><span class="si">}</span><span class="s2">: only </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span><span class="si">}</span><span class="s2"> cells (need </span><span class="si">{</span><span class="n">min_samples</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">mcd</span> <span class="o">=</span> <span class="n">MinCovDet</span><span class="p">(</span><span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
+                <span class="n">d2</span> <span class="o">=</span> <span class="n">mcd</span><span class="o">.</span><span class="n">mahalanobis</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span>
+                <span class="n">pvals</span> <span class="o">=</span> <span class="n">chi2</span><span class="o">.</span><span class="n">sf</span><span class="p">(</span><span class="n">d2</span><span class="p">,</span> <span class="n">df</span><span class="o">=</span><span class="n">n_dims</span><span class="p">)</span>
+                <span class="n">outlier_mask</span> <span class="o">=</span> <span class="n">pvals</span> <span class="o">&lt;</span> <span class="n">pval_cutoff</span>
+
+                <span class="n">is_outlier</span><span class="p">[</span><span class="n">idx</span><span class="p">[</span><span class="n">outlier_mask</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping </span><span class="si">{</span><span class="n">group_keys</span><span class="si">}</span><span class="s2">: MCD failed — </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+        <span class="n">adata</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="s2">&quot;_outlier&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">is_outlier</span><span class="o">.</span><span class="n">values</span>
+        <span class="n">n_removed</span> <span class="o">=</span> <span class="n">is_outlier</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Removing </span><span class="si">{</span><span class="n">n_removed</span><span class="si">}</span><span class="s2"> / </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">adata</span><span class="p">)</span><span class="si">}</span><span class="s2"> cells (</span><span class="si">{</span><span class="n">n_removed</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">adata</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">100</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">%)&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">adata</span><span class="p">[</span><span class="o">~</span><span class="n">is_outlier</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Alicia Petrany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

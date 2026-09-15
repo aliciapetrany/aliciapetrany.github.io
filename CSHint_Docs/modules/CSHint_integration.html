@@ -1,0 +1,356 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cross-Species Integration &mdash; CSHint</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Tutorials" href="../Tutorials.html" />
+    <link rel="prev" title="Count Merging" href="CSHint_merger.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CSHint
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../api.html">API reference</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="OrthofinderWrapper.html">OrthoFinder wrapper</a></li>
+<li class="toctree-l2"><a class="reference internal" href="CSHint_preprocess.html">Preprocessing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="CSHint_merger.html">Count Merging</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Cross-Species Integration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#CSHint_integration.CSHint_integration"><code class="docutils literal notranslate"><span class="pre">CSHint_integration</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#CSHint_integration.CSHint_integration.__init__"><code class="docutils literal notranslate"><span class="pre">CSHint_integration.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#CSHint_integration.CSHint_integration.load"><code class="docutils literal notranslate"><span class="pre">CSHint_integration.load()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#CSHint_integration.CSHint_integration.select_features"><code class="docutils literal notranslate"><span class="pre">CSHint_integration.select_features()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#CSHint_integration.CSHint_integration.to_anndata"><code class="docutils literal notranslate"><span class="pre">CSHint_integration.to_anndata()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#CSHint_integration.CSHint_integration.prepare_for_integration"><code class="docutils literal notranslate"><span class="pre">CSHint_integration.prepare_for_integration()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#CSHint_integration.CSHint_integration.integrate"><code class="docutils literal notranslate"><span class="pre">CSHint_integration.integrate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#CSHint_integration.CSHint_integration.integrate_no_optimization"><code class="docutils literal notranslate"><span class="pre">CSHint_integration.integrate_no_optimization()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#CSHint_integration.CSHint_integration.post_integration_correction"><code class="docutils literal notranslate"><span class="pre">CSHint_integration.post_integration_correction()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../Tutorials.html">Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CSHint</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api.html">API reference</a></li>
+      <li class="breadcrumb-item active">Cross-Species Integration</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/modules/CSHint_integration.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="cross-species-integration">
+<h1>Cross-Species Integration<a class="headerlink" href="#cross-species-integration" title="Link to this heading"></a></h1>
+<dl class="py class" id="module-CSHint_integration">
+<dt class="sig sig-object py" id="CSHint_integration.CSHint_integration">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">CSHint_integration.</span></span><span class="sig-name descname"><span class="pre">CSHint_integration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference_species</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/CSHint_integration.html#CSHint_integration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CSHint_integration.CSHint_integration" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>This module manages species integration using the merged matrix output by the CSHint_merge module.</p>
+<dl class="simple">
+<dt>Steps:</dt><dd><ol class="arabic simple">
+<li><p>load() : Loads in the merged matrix</p></li>
+<li><p>select_features() : Selects a shortlist of features to use during integration</p></li>
+<li><p>prepare_for_integration(): Normalizes the data, runs PCA, and classifies cell types</p></li>
+<li><p>integrate() OR integrate_no_optimization() : Runs the TPS correction. integrate() is highly reccomended</p></li>
+<li><p>[ONLY IF NECESSARY] post_integration_correction() : removes cells that are not integrate properly</p></li>
+</ol>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="CSHint_integration.CSHint_integration.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reference_species</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/CSHint_integration.html#CSHint_integration.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CSHint_integration.CSHint_integration.__init__" title="Link to this definition"></a></dt>
+<dd><p>Initialise an integration run.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>output_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Directory the merged matrices were written to by the CSHint
+merge module.</p></li>
+<li><p><strong>reference_species</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><em>None</em>) – Species ID to correct towards. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, the species
+with the most cells is chosen during <a class="reference internal" href="#CSHint_integration.CSHint_integration.prepare_for_integration" title="CSHint_integration.CSHint_integration.prepare_for_integration"><code class="xref py py-meth docutils literal notranslate"><span class="pre">prepare_for_integration()</span></code></a>.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="CSHint_integration.CSHint_integration.load">
+<span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/CSHint_integration.html#CSHint_integration.load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CSHint_integration.CSHint_integration.load" title="Link to this definition"></a></dt>
+<dd><p>Re-load the merged matrix and its metadata from <code class="docutils literal notranslate"><span class="pre">self.output_dir</span></code>.</p>
+<p>Reads <code class="docutils literal notranslate"><span class="pre">matrix_normalised.mtx</span></code>, <code class="docutils literal notranslate"><span class="pre">metadata.txt</span></code> and <code class="docutils literal notranslate"><span class="pre">rowmetadata.csv</span></code>, then
+computes per-cell-type means. Populates <code class="docutils literal notranslate"><span class="pre">self.raw_tensor</span></code>,
+<code class="docutils literal notranslate"><span class="pre">self.annotations</span></code>, <code class="docutils literal notranslate"><span class="pre">self.raw_tensorlabels</span></code>,
+<code class="docutils literal notranslate"><span class="pre">self.raw_gene_layer_assignments</span></code> and <code class="docutils literal notranslate"><span class="pre">self.cell_type_means</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>. Results are stored on the instance.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="CSHint_integration.CSHint_integration.select_features">
+<span class="sig-name descname"><span class="pre">select_features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">discriminability_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.75</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">conservation_threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/CSHint_integration.html#CSHint_integration.select_features"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CSHint_integration.CSHint_integration.select_features" title="Link to this definition"></a></dt>
+<dd><p>Select features that are both conserved across species and discriminative
+between cell types.</p>
+<p>Conservation is scored first and filters the candidate pool; the discriminability
+cutoff is then a percentile of the survivors only, so the two thresholds are not
+independent. Populates <code class="docutils literal notranslate"><span class="pre">self.selected_features</span></code>,
+<code class="docutils literal notranslate"><span class="pre">self.discriminability_scores</span></code> and <code class="docutils literal notranslate"><span class="pre">self.conservation_scores</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>discriminability_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Percentile cutoff on discriminability,
+expressed as a fraction and applied to the conservation-filtered candidates.
+This is a quantile, not a score: <code class="docutils literal notranslate"><span class="pre">0.75</span></code> keeps the most variable quarter of
+candidates, and <code class="docutils literal notranslate"><span class="pre">0.0</span></code> keeps all of them.</p></li>
+<li><p><strong>conservation_threshold</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Minimum mean pairwise Spearman correlation across
+species for a feature to be considered at all. Applied as an absolute score
+in <code class="docutils literal notranslate"><span class="pre">[-1,</span> <span class="pre">1]</span></code>, unlike the discriminability cutoff.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">None</span></code>. Results are stored on the instance.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#IndexError" title="(in Python v3.14)"><strong>IndexError</strong></a> – If no feature clears <code class="docutils literal notranslate"><span class="pre">conservation_threshold</span></code>, leaving the
+percentile with an empty distribution.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="CSHint_integration.CSHint_integration.to_anndata">
+<span class="sig-name descname"><span class="pre">to_anndata</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/CSHint_integration.html#CSHint_integration.to_anndata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CSHint_integration.CSHint_integration.to_anndata" title="Link to this definition"></a></dt>
+<dd><p>Convert the feature-by-cell matrix into a cell-by-feature AnnData.</p>
+<p>Slices <code class="docutils literal notranslate"><span class="pre">self.raw_tensor</span></code> to the selected features and transposes it, attaching
+orthogroup, rank and score columns to <code class="docutils literal notranslate"><span class="pre">var</span></code> and species and cell type to
+<code class="docutils literal notranslate"><span class="pre">obs</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Cell-by-feature data for the selected features.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://anndata.readthedocs.io/en/stable/generated/anndata.AnnData.html#anndata.AnnData" title="(in anndata v0.13.3.post0)">anndata.AnnData</a></p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <a class="reference internal" href="#CSHint_integration.CSHint_integration.select_features" title="CSHint_integration.CSHint_integration.select_features"><code class="xref py py-meth docutils literal notranslate"><span class="pre">select_features()</span></code></a> has not been run, or if no
+selected feature name matches a row of the matrix.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="CSHint_integration.CSHint_integration.prepare_for_integration">
+<span class="sig-name descname"><span class="pre">prepare_for_integration</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n_components</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">50</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/CSHint_integration.html#CSHint_integration.prepare_for_integration"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CSHint_integration.CSHint_integration.prepare_for_integration" title="Link to this definition"></a></dt>
+<dd><p>Build the AnnData object and PCA embedding consumed by <code class="xref py py-meth docutils literal notranslate"><span class="pre">optimize()</span></code>.</p>
+<p>Runs total-count normalisation to 10,000 counts per cell, <code class="docutils literal notranslate"><span class="pre">log1p</span></code>, unit scaling
+clipped at 10 standard deviations, then PCA. Also classifies cell types, which
+populates <code class="docutils literal notranslate"><span class="pre">self.pair_anchors</span></code> as a side effect on the instance even though the
+returned object is not stored.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>n_components</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of principal components to compute. Must not exceed
+<code class="docutils literal notranslate"><span class="pre">min(n_cells,</span> <span class="pre">n_features)</span></code>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Preprocessed data with the embedding in <code class="docutils literal notranslate"><span class="pre">obsm[&quot;X_pca&quot;]</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://anndata.readthedocs.io/en/stable/generated/anndata.AnnData.html#anndata.AnnData" title="(in anndata v0.13.3.post0)">anndata.AnnData</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="CSHint_integration.CSHint_integration.integrate">
+<span class="sig-name descname"><span class="pre">integrate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">adata_pca</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_trials</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_jobs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random_state</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">42</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metric_weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">regularisation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cell_type_agnostic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_anchor_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.3</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/CSHint_integration.html#CSHint_integration.integrate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CSHint_integration.CSHint_integration.integrate" title="Link to this definition"></a></dt>
+<dd><p>Optimise <code class="docutils literal notranslate"><span class="pre">n_anchors_target</span></code> for TPS-based cross-species integration.</p>
+<p>Anchor candidate correlations are computed once up front and shared read-only
+across trials; each trial then runs only the greedy match, the TPS warp and the
+scib metrics. Anchors pass between those stages by value, so trials stay
+independent when <code class="docutils literal notranslate"><span class="pre">n_jobs</span> <span class="pre">&gt;</span> <span class="pre">1</span></code>. Once the study completes, anchors are rebuilt
+with the winning parameters and the correction is applied to <code class="docutils literal notranslate"><span class="pre">adata_pca</span></code> in
+place, leaving <code class="docutils literal notranslate"><span class="pre">self.anchors</span></code> and <code class="docutils literal notranslate"><span class="pre">self.best_params</span></code> in agreement with it.</p>
+<p>Scored metrics are ARI, NMI and graph connectivity;</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>adata_pca</strong> (<a class="reference external" href="https://anndata.readthedocs.io/en/stable/generated/anndata.AnnData.html#anndata.AnnData" title="(in anndata v0.13.3.post0)"><em>anndata.AnnData</em></a>) – Data carrying an uncorrected <code class="docutils literal notranslate"><span class="pre">obsm[&quot;X_pca&quot;]</span></code> plus
+<code class="docutils literal notranslate"><span class="pre">obs[&quot;species&quot;]</span></code> and <code class="docutils literal notranslate"><span class="pre">obs[&quot;cell_type&quot;]</span></code>. Modified in place once the study
+has finished.</p></li>
+<li><p><strong>n_trials</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of Optuna trials to run.</p></li>
+<li><p><strong>n_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of trials to run concurrently.</p></li>
+<li><p><strong>random_state</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Seed for the TPE sampler, the neighbour graph and Leiden.</p></li>
+<li><p><strong>metric_weights</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>] or </em><em>None</em>) – Weights keyed by <code class="docutils literal notranslate"><span class="pre">&quot;ari&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;nmi&quot;</span></code> and
+<code class="docutils literal notranslate"><span class="pre">&quot;graph_connectivity&quot;</span></code>, normalised to sum to one. Defaults to
+<code class="docutils literal notranslate"><span class="pre">{&quot;ari&quot;:</span> <span class="pre">0.4,</span> <span class="pre">&quot;nmi&quot;:</span> <span class="pre">0.2,</span> <span class="pre">&quot;graph_connectivity&quot;:</span> <span class="pre">0.4}</span></code>.</p></li>
+<li><p><strong>regularisation</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Ridge term on the TPS kernel diagonal. Fixed across trials
+rather than optimised.</p></li>
+<li><p><strong>cell_type_agnostic</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, match anchors across the whole species pair
+rather than within shared cell types.</p></li>
+<li><p><strong>min_anchor_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Minimum rank correlation for a candidate pair to be
+retained during precomputation.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The corrected anndata object, the completed study and its best parameter dictionary.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[adata, ptuna.study.Study, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)">dict</a>]</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <code class="xref py py-meth docutils literal notranslate"><span class="pre">_classify_cell_types()</span></code> has not been run, or if fewer
+than two shared cell types exist across all species pairs.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="CSHint_integration.CSHint_integration.integrate_no_optimization">
+<span class="sig-name descname"><span class="pre">integrate_no_optimization</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">adata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nanchors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">regularisation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">X_ranked</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cell_type_agnostic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">512</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_anchor_weight</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.3</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/CSHint_integration.html#CSHint_integration.integrate_no_optimization"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CSHint_integration.CSHint_integration.integrate_no_optimization" title="Link to this definition"></a></dt>
+<dd><p>Run anchor selection and TPS correction once, without hyperparameter search.</p>
+<p>The fixed-parameter counterpart to <code class="xref py py-meth docutils literal notranslate"><span class="pre">optimize()</span></code>, for when the anchor count
+is already known. Stores the selected anchors on <code class="docutils literal notranslate"><span class="pre">self.anchors</span></code> and corrects
+<code class="docutils literal notranslate"><span class="pre">adata</span></code> in place.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>adata</strong> (<a class="reference external" href="https://anndata.readthedocs.io/en/stable/generated/anndata.AnnData.html#anndata.AnnData" title="(in anndata v0.13.3.post0)"><em>anndata.AnnData</em></a>) – Data carrying an uncorrected <code class="docutils literal notranslate"><span class="pre">obsm[&quot;X_pca&quot;]</span></code> plus
+<code class="docutils literal notranslate"><span class="pre">obs[&quot;species&quot;]</span></code> and <code class="docutils literal notranslate"><span class="pre">obs[&quot;cell_type&quot;]</span></code>. Modified in place.</p></li>
+<li><p><strong>nanchors</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Anchors to select per species pair.</p></li>
+<li><p><strong>regularisation</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Ridge term on the TPS kernel diagonal.</p></li>
+<li><p><strong>X_ranked</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>numpy.ndarray</em></a><em> or </em><em>None</em>) – Precomputed rank-transformed embedding, or <code class="docutils literal notranslate"><span class="pre">None</span></code> to compute it.</p></li>
+<li><p><strong>cell_type_agnostic</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, match across the whole species pair rather
+than within shared cell types.</p></li>
+<li><p><strong>chunk_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Row block size for the correlation matrix product.</p></li>
+<li><p><strong>min_anchor_weight</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Minimum rank correlation for a pair to be retained.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The corrected data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://anndata.readthedocs.io/en/stable/generated/anndata.AnnData.html#anndata.AnnData" title="(in anndata v0.13.3.post0)">anndata.AnnData</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="CSHint_integration.CSHint_integration.post_integration_correction">
+<span class="sig-name descname"><span class="pre">post_integration_correction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">adata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group_cols</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'pca'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pval_cutoff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.01</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_neighbors</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">15</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_dist</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random_state</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">42</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/CSHint_integration.html#CSHint_integration.post_integration_correction"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#CSHint_integration.CSHint_integration.post_integration_correction" title="Link to this definition"></a></dt>
+<dd><p>Remove outlier cells per group using robust Mahalanobis distance (MCD estimator)
+on either PCA or UMAP coordinates.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>adata</strong> (<em>AnnData object output from CSHint_integration</em>)</p></li>
+<li><p><strong>group_cols</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em> of </em><em>.obs columns to group by e.g.</em><em> [</em><em>&quot;species&quot;</em><em>, </em><em>&quot;ct&quot;</em><em>]</em>)</p></li>
+<li><p><strong>method</strong> (<em>&quot;pca&quot; uses .obsm</em><em>[</em><em>&quot;X_pca&quot;</em><em>]</em><em>; &quot;umap&quot; generates a UMAP first</em>) – then uses .obsm[“X_umap”]</p></li>
+<li><p><strong>pval_cutoff</strong> (<em>chi-squared p-value threshold; cells below this are removed</em>)</p></li>
+<li><p><strong>n_neighbors</strong> (<em>(</em><em>umap only</em><em>) </em><em>number</em><em> of </em><em>neighbours for sc.pp.neighbors</em>)</p></li>
+<li><p><strong>min_dist</strong> (<em>(</em><em>umap only</em><em>) </em><em>min_dist passed to sc.tl.umap</em>)</p></li>
+<li><p><strong>random_state</strong> (<em>(</em><em>umap only</em><em>) </em><em>random seed for reproducibility</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>AnnData with outlier cells removed, plus adata.obs[“_outlier”] bool column</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="CSHint_merger.html" class="btn btn-neutral float-left" title="Count Merging" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../Tutorials.html" class="btn btn-neutral float-right" title="Tutorials" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Alicia Petrany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

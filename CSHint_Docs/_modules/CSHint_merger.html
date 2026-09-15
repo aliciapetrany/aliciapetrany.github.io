@@ -1,0 +1,624 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CSHint_merger &mdash; CSHint</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            CSHint
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Tutorials.html">Tutorials</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CSHint</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Module code</a></li>
+      <li class="breadcrumb-item active">CSHint_merger</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for CSHint_merger</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">OrthofinderWrapper</span><span class="w"> </span><span class="kn">import</span> <span class="n">OrthoFinderWrapper</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">anndata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ad</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scipy.sparse</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sp</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scipy.io</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">concurrent.futures</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProcessPoolExecutor</span><span class="p">,</span> <span class="n">as_completed</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">spearmanr</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_compute_og_layers</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Groups genes within an orthogroup into distinct &#39;layers&#39; (rows).</span>
+<span class="sd">    Uses Spearman correlation of cell-type means.</span>
+<span class="sd">    Ensures no layer contains more than one gene from the same species.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">og_name</span><span class="p">,</span> <span class="n">species_genes</span><span class="p">,</span> <span class="n">species_cell_type_means</span> <span class="o">=</span> <span class="n">args</span>
+
+    <span class="n">all_genes</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">gene_to_species</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">gene_profiles</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">species</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">species_genes</span><span class="p">):</span>
+        <span class="n">means</span> <span class="o">=</span> <span class="n">species_cell_type_means</span><span class="p">[</span><span class="n">species</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">species_genes</span><span class="p">[</span><span class="n">species</span><span class="p">]):</span>
+            <span class="k">if</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">means</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                <span class="n">all_genes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
+                <span class="n">gene_to_species</span><span class="p">[</span><span class="n">g</span><span class="p">]</span> <span class="o">=</span> <span class="n">species</span>
+                <span class="n">gene_profiles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">means</span><span class="p">[</span><span class="n">g</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">all_genes</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">og_name</span><span class="p">,</span> <span class="p">{}</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_genes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">og_name</span><span class="p">,</span> <span class="p">{</span><span class="n">all_genes</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span> <span class="mi">0</span><span class="p">}</span>
+
+    <span class="n">gene_pos</span> <span class="o">=</span> <span class="p">{</span><span class="n">g</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">g</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">all_genes</span><span class="p">)}</span>
+    <span class="n">matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">(</span><span class="n">gene_profiles</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">corr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">all_genes</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_genes</span><span class="p">)))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">corr</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">spearmanr</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_genes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">corr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="mi">1</span><span class="p">,</span> <span class="n">corr</span><span class="p">],</span> <span class="p">[</span><span class="n">corr</span><span class="p">,</span> <span class="mi">1</span><span class="p">]])</span>
+        <span class="k">elif</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">corr</span><span class="p">)</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">corr</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="n">corr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">all_genes</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">all_genes</span><span class="p">)))</span>
+
+    <span class="n">corr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">corr</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">corr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">corr</span><span class="p">,</span> <span class="n">nan</span><span class="o">=-</span><span class="mf">1.0</span><span class="p">)</span>
+    <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">corr</span><span class="p">,</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+
+    <span class="n">assigned</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">remaining_genes</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">all_genes</span><span class="p">)</span>
+    <span class="n">z_layer</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">while</span> <span class="n">remaining_genes</span><span class="p">:</span>
+        <span class="n">seed_gene</span> <span class="o">=</span> <span class="n">remaining_genes</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">current_layer</span> <span class="o">=</span> <span class="p">{</span><span class="n">seed_gene</span><span class="p">}</span>
+        <span class="n">assigned</span><span class="p">[</span><span class="n">seed_gene</span><span class="p">]</span> <span class="o">=</span> <span class="n">z_layer</span>
+        <span class="n">species_in_layer</span> <span class="o">=</span> <span class="p">{</span><span class="n">gene_to_species</span><span class="p">[</span><span class="n">seed_gene</span><span class="p">]}</span>
+
+        <span class="n">added_in_round</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">while</span> <span class="n">added_in_round</span><span class="p">:</span>
+            <span class="n">added_in_round</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">best_candidate</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">best_score</span> <span class="o">=</span> <span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+
+            <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">remaining_genes</span><span class="p">:</span>
+                <span class="n">cand_species</span> <span class="o">=</span> <span class="n">gene_to_species</span><span class="p">[</span><span class="n">candidate</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">cand_species</span> <span class="ow">in</span> <span class="n">species_in_layer</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="n">cand_idx</span> <span class="o">=</span> <span class="n">gene_pos</span><span class="p">[</span><span class="n">candidate</span><span class="p">]</span>
+                <span class="n">layer_idxs</span> <span class="o">=</span> <span class="p">[</span><span class="n">gene_pos</span><span class="p">[</span><span class="n">g</span><span class="p">]</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">current_layer</span><span class="p">]</span>
+                <span class="n">mean_corr</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="n">corr</span><span class="p">[</span><span class="n">cand_idx</span><span class="p">,</span> <span class="n">l_idx</span><span class="p">]</span> <span class="k">for</span> <span class="n">l_idx</span> <span class="ow">in</span> <span class="n">layer_idxs</span><span class="p">]))</span>
+
+                <span class="k">if</span> <span class="n">mean_corr</span> <span class="o">&gt;</span> <span class="n">best_score</span><span class="p">:</span>
+                    <span class="n">best_score</span> <span class="o">=</span> <span class="n">mean_corr</span>
+                    <span class="n">best_candidate</span> <span class="o">=</span> <span class="n">candidate</span>
+
+            <span class="k">if</span> <span class="n">best_candidate</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">best_score</span> <span class="o">&gt;</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">:</span>
+                <span class="n">current_layer</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">best_candidate</span><span class="p">)</span>
+                <span class="n">assigned</span><span class="p">[</span><span class="n">best_candidate</span><span class="p">]</span> <span class="o">=</span> <span class="n">z_layer</span>
+                <span class="n">remaining_genes</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">best_candidate</span><span class="p">)</span>
+                <span class="n">species_in_layer</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">gene_to_species</span><span class="p">[</span><span class="n">best_candidate</span><span class="p">])</span>
+                <span class="n">added_in_round</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">z_layer</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">return</span> <span class="n">og_name</span><span class="p">,</span> <span class="n">assigned</span>
+
+
+<div class="viewcode-block" id="CSHint_merger">
+<a class="viewcode-back" href="../modules/CSHint_merger.html#CSHint_merger.CSHint_merger">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CSHint_merger</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Merge per-species scRNA-seq into a joint orthogroup-layer matrix.</span>
+
+<span class="sd">    Writes BOTH matrix.mtx (raw integer counts) and matrix_normalised.mtx</span>
+<span class="sd">    (depth-scaled, optionally log1p).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="CSHint_merger.__init__">
+<a class="viewcode-back" href="../modules/CSHint_merger.html#CSHint_merger.CSHint_merger.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">orthofinder_resultdir</span><span class="p">,</span>
+        <span class="n">scrna_dirs</span><span class="p">,</span>
+        <span class="n">output_dir</span><span class="p">,</span>
+        <span class="n">annotation_obs_col</span><span class="p">,</span>
+        <span class="n">ncores</span><span class="o">=</span><span class="mi">16</span><span class="p">,</span>
+        <span class="n">counts_layer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">normalise</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">scale_factor</span><span class="o">=</span><span class="mf">1e4</span><span class="p">,</span>
+        <span class="n">log1p</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">normalise_by</span><span class="o">=</span><span class="s2">&quot;matrix&quot;</span><span class="p">,</span>
+        <span class="n">layer_means_on</span><span class="o">=</span><span class="s2">&quot;normalised&quot;</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialise a cross-species merge run.</span>
+
+<span class="sd">        Validates the enumerated options and sets up the empty containers that</span>
+<span class="sd">        :meth:`load` and the merge steps populate.</span>
+
+<span class="sd">        :param orthofinder_resultdir: Directory holding the OrthoFinder results used for</span>
+<span class="sd">            orthogroup assignment.</span>
+<span class="sd">        :type orthofinder_resultdir: str</span>
+<span class="sd">        :param scrna_dirs: Input scRNA-seq paths keyed by species. The keys define the</span>
+<span class="sd">            species set for the run.</span>
+<span class="sd">        :type scrna_dirs: dict[str, str]</span>
+<span class="sd">        :param output_dir: Destination for the merged matrix and its metadata.</span>
+<span class="sd">        :type output_dir: str</span>
+<span class="sd">        :param annotation_obs_col: Column in ``adata.obs`` holding the cell type labels.</span>
+<span class="sd">        :type annotation_obs_col: str</span>
+<span class="sd">        :param ncores: Worker processes for the parallelised steps.</span>
+<span class="sd">        :type ncores: int</span>
+<span class="sd">        :param counts_layer: Layer holding raw counts, e.g. ``&quot;counts&quot;``. ``None`` uses</span>
+<span class="sd">            ``adata.X``. Set this whenever ``adata.X`` has been normalised in place —</span>
+<span class="sd">            otherwise ``matrix.mtx`` will contain normalised values under a raw name, and</span>
+<span class="sd">            every downstream integer check will pass while the NB offset double-corrects</span>
+<span class="sd">            for depth.</span>
+<span class="sd">        :type counts_layer: str or None</span>
+<span class="sd">        :param normalise: Whether to depth-scale counts during the merge.</span>
+<span class="sd">        :type normalise: bool</span>
+<span class="sd">        :param scale_factor: Target sum per cell for depth scaling.</span>
+<span class="sd">        :type scale_factor: float</span>
+<span class="sd">        :param log1p: Whether to apply ``log1p`` after scaling.</span>
+<span class="sd">        :type log1p: bool</span>
+<span class="sd">        :param normalise_by: Denominator for depth scaling. ``&quot;matrix&quot;`` uses the joint</span>
+<span class="sd">            matrix column sums, which is what the DE offset uses, so the two stay</span>
+<span class="sd">            consistent. ``&quot;genome&quot;`` uses each cell&#39;s total across all genes in its</span>
+<span class="sd">            original object, which is the true library size but includes genes dropped</span>
+<span class="sd">            during orthogroup assignment.</span>
+<span class="sd">        :type normalise_by: str</span>
+<span class="sd">        :param layer_means_on: Basis for the cell-type mean profiles that drive layer</span>
+<span class="sd">            assignment, either ``&quot;normalised&quot;`` or ``&quot;raw&quot;``.</span>
+<span class="sd">        :type layer_means_on: str</span>
+<span class="sd">        :raises ValueError: If ``normalise_by`` or ``layer_means_on`` is not one of its</span>
+<span class="sd">            permitted values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">orthofinder_resultdir</span> <span class="o">=</span> <span class="n">orthofinder_resultdir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scrna_dirs</span> <span class="o">=</span> <span class="n">scrna_dirs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">species</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">scrna_dirs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span> <span class="o">=</span> <span class="n">output_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ncores</span> <span class="o">=</span> <span class="n">ncores</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">annotation_obs_col</span> <span class="o">=</span> <span class="n">annotation_obs_col</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">counts_layer</span> <span class="o">=</span> <span class="n">counts_layer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">normalise</span> <span class="o">=</span> <span class="n">normalise</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale_factor</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">scale_factor</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log1p</span> <span class="o">=</span> <span class="n">log1p</span>
+        <span class="k">if</span> <span class="n">normalise_by</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;matrix&quot;</span><span class="p">,</span> <span class="s2">&quot;genome&quot;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;normalise_by must be &#39;matrix&#39; or &#39;genome&#39;.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">normalise_by</span> <span class="o">=</span> <span class="n">normalise_by</span>
+        <span class="k">if</span> <span class="n">layer_means_on</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;normalised&quot;</span><span class="p">,</span> <span class="s2">&quot;raw&quot;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;layer_means_on must be &#39;normalised&#39; or &#39;raw&#39;.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layer_means_on</span> <span class="o">=</span> <span class="n">layer_means_on</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">samplesizes</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">matrices</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gene_names</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cell_labels</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">anchor_cell_types</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cell_type_means</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gene_layer_assignments</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">total_counts</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">counts_are_integer</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">row_metadata_list</span> <span class="o">=</span> <span class="p">[]</span></div>
+
+
+<div class="viewcode-block" id="CSHint_merger.run">
+<a class="viewcode-back" href="../modules/CSHint_merger.html#CSHint_merger.CSHint_merger.run">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Execute the full merge pipeline end to end.</span>
+
+<span class="sd">        Loads the OrthoFinder orthogroups and per-species expression data, computes</span>
+<span class="sd">        anchor cell-type mean profiles, assigns genes to layers by greedy expression</span>
+<span class="sd">        similarity, fills the joint matrix, optionally normalises it, and writes the</span>
+<span class="sd">        result to ``self.output_dir``.</span>
+
+<span class="sd">        Normalisation runs only when ``self.normalise`` is set; the parameters governing</span>
+<span class="sd">        each step are those fixed at construction.</span>
+
+<span class="sd">        :returns: ``None``. Output is written to disk and to the instance attributes</span>
+<span class="sd">            populated along the way.</span>
+<span class="sd">        :rtype: None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Loading OrthoFinder results...&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_get_orthogroups</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Loading scRNA-seq data...&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_all_scRNA_seq</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Computing anchor cell type means (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">layer_means_on</span><span class="si">}</span><span class="s2">)...&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_compute_cell_type_means</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Computing greedy functional homolog layering...&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sort_columns_by_expression_similarity</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Filling final matrix...&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fill_matrix</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalise</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Normalising (scale_factor=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">scale_factor</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2">, log1p=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">log1p</span><span class="si">}</span><span class="s2">, &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;by=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">normalise_by</span><span class="si">}</span><span class="s2">)...&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_normalise_matrix</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saving to </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_save</span><span class="p">()</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_orthogroups</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">ow</span> <span class="o">=</span> <span class="n">OrthoFinderWrapper</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">orthogroups</span> <span class="o">=</span> <span class="n">ow</span><span class="o">.</span><span class="n">read_orthogroups</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">orthofinder_resultdir</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_load_all_scRNA_seq</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">cell_type_sets</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">species</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">scrna_dirs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Loading </span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">...&quot;</span><span class="p">)</span>
+            <span class="n">adata</span> <span class="o">=</span> <span class="n">ad</span><span class="o">.</span><span class="n">read_h5ad</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">counts_layer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">counts_layer</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">adata</span><span class="o">.</span><span class="n">layers</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Layer &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">counts_layer</span><span class="si">}</span><span class="s2">&#39; not found for </span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">. &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;Available layers: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">adata</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+                <span class="n">X</span> <span class="o">=</span> <span class="n">adata</span><span class="o">.</span><span class="n">layers</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">counts_layer</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">X</span> <span class="o">=</span> <span class="n">adata</span><span class="o">.</span><span class="n">X</span>
+
+            <span class="n">X</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">tocsc</span><span class="p">()</span> <span class="k">if</span> <span class="n">sp</span><span class="o">.</span><span class="n">issparse</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="k">else</span> <span class="n">sp</span><span class="o">.</span><span class="n">csc_matrix</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+
+            <span class="n">data</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">data</span>
+            <span class="n">is_int</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">counts_are_integer</span><span class="p">[</span><span class="n">species</span><span class="p">]</span> <span class="o">=</span> <span class="n">is_int</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">is_int</span><span class="p">:</span>
+                <span class="n">src</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;layers[&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">counts_layer</span><span class="si">}</span><span class="s2">&#39;]&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">counts_layer</span> <span class="k">else</span> <span class="s2">&quot;X&quot;</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">src</span><span class="si">}</span><span class="s2"> holds non-integer values, so it does not look &quot;</span>
+                    <span class="s2">&quot;like raw counts. matrix.mtx will not be a valid input to an NB &quot;</span>
+                    <span class="s2">&quot;model. Pass counts_layer= to point at the raw counts.&quot;</span><span class="p">,</span>
+                    <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">size</span> <span class="ow">and</span> <span class="n">data</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">: negative values present — this is residual-scaled or &quot;</span>
+                    <span class="s2">&quot;z-scored data, not counts.&quot;</span><span class="p">,</span>
+                    <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                <span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">matrices</span><span class="p">[</span><span class="n">species</span><span class="p">]</span> <span class="o">=</span> <span class="n">X</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">total_counts</span><span class="p">[</span><span class="n">species</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gene_names</span><span class="p">[</span><span class="n">species</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">adata</span><span class="o">.</span><span class="n">var_names</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">samplesizes</span><span class="p">[</span><span class="n">species</span><span class="p">]</span> <span class="o">=</span> <span class="n">adata</span><span class="o">.</span><span class="n">n_obs</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotation_obs_col</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">adata</span><span class="o">.</span><span class="n">obs</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Column &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">annotation_obs_col</span><span class="si">}</span><span class="s2">&#39; not found for </span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">[</span><span class="n">species</span><span class="p">]</span> <span class="o">=</span> <span class="n">adata</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">annotation_obs_col</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cell_labels</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">adata</span><span class="o">.</span><span class="n">obs_names</span><span class="p">])</span>
+            <span class="n">cell_type_sets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">adata</span><span class="o">.</span><span class="n">obs</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">annotation_obs_col</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">anchor_cell_types</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="o">*</span><span class="n">cell_type_sets</span><span class="p">))</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">anchor_cell_types</span><span class="p">)</span><span class="si">}</span><span class="s2"> anchor cell types across all species&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_cell_type_means</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Cell-type mean profiles used for the Spearman layering.</span>
+
+<span class="sd">        Defaults to normalised means: the Spearman correlation is taken across</span>
+<span class="sd">        cell types, so a cell type with systematically deeper cells inflates every</span>
+<span class="sd">        gene&#39;s mean there and drags the correlation structure toward sequencing</span>
+<span class="sd">        depth rather than expression. Set layer_means_on=&#39;raw&#39; to reproduce</span>
+<span class="sd">        assignments from earlier runs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">use_norm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer_means_on</span> <span class="o">==</span> <span class="s2">&quot;normalised&quot;</span>
+
+        <span class="k">for</span> <span class="n">species</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="p">:</span>
+            <span class="n">mat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">matrices</span><span class="p">[</span><span class="n">species</span><span class="p">]</span>
+            <span class="n">obs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">[</span><span class="n">species</span><span class="p">]</span>
+            <span class="n">genes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gene_names</span><span class="p">[</span><span class="n">species</span><span class="p">]</span>
+            <span class="n">totals</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">total_counts</span><span class="p">[</span><span class="n">species</span><span class="p">]</span>
+
+            <span class="n">inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">totals</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+            <span class="n">nz</span> <span class="o">=</span> <span class="n">totals</span> <span class="o">&gt;</span> <span class="mi">0</span>
+            <span class="n">inv</span><span class="p">[</span><span class="n">nz</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale_factor</span> <span class="o">/</span> <span class="n">totals</span><span class="p">[</span><span class="n">nz</span><span class="p">]</span>
+
+            <span class="n">means</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">cell_type</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">anchor_cell_types</span><span class="p">:</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">obs</span> <span class="o">==</span> <span class="n">cell_type</span><span class="p">)</span><span class="o">.</span><span class="n">values</span>
+                <span class="k">if</span> <span class="n">mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">means</span><span class="p">[</span><span class="n">cell_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">mat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="k">continue</span>
+
+                <span class="n">sub</span> <span class="o">=</span> <span class="n">mat</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="p">:]</span>
+                <span class="k">if</span> <span class="n">use_norm</span><span class="p">:</span>
+                    <span class="n">sub</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">diags</span><span class="p">(</span><span class="n">inv</span><span class="p">[</span><span class="n">mask</span><span class="p">])</span> <span class="o">@</span> <span class="n">sub</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">log1p</span><span class="p">:</span>
+                        <span class="n">sub</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>
+                        <span class="n">sub</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+                <span class="n">means</span><span class="p">[</span><span class="n">cell_type</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">cell_type_means</span><span class="p">[</span><span class="n">species</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">means</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">genes</span><span class="p">)</span><span class="o">.</span><span class="n">T</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sort_columns_by_expression_similarity</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">tasks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">og_name</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">orthogroups</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+            <span class="n">species_genes</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">species</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">notna</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">species</span><span class="p">)):</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">species</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+                        <span class="n">og_genes</span> <span class="o">=</span> <span class="p">[</span><span class="n">g</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">row</span><span class="p">[</span><span class="n">species</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)]</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">og_genes</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="n">species</span><span class="p">]</span>
+
+                    <span class="n">valid_genes</span> <span class="o">=</span> <span class="p">[</span><span class="n">g</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">og_genes</span> <span class="k">if</span> <span class="n">g</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">gene_names</span><span class="p">[</span><span class="n">species</span><span class="p">]]</span>
+                    <span class="k">if</span> <span class="n">valid_genes</span><span class="p">:</span>
+                        <span class="n">species_genes</span><span class="p">[</span><span class="n">species</span><span class="p">]</span> <span class="o">=</span> <span class="n">valid_genes</span>
+
+            <span class="k">if</span> <span class="n">species_genes</span><span class="p">:</span>
+                <span class="n">tasks</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">og_name</span><span class="p">,</span> <span class="n">species_genes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cell_type_means</span><span class="p">))</span>
+
+        <span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">with</span> <span class="n">ProcessPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ncores</span><span class="p">)</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+            <span class="n">futures</span> <span class="o">=</span> <span class="p">{</span><span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">_compute_og_layers</span><span class="p">,</span> <span class="n">task</span><span class="p">):</span> <span class="n">task</span> <span class="k">for</span> <span class="n">task</span> <span class="ow">in</span> <span class="n">tasks</span><span class="p">}</span>
+            <span class="k">for</span> <span class="n">future</span> <span class="ow">in</span> <span class="n">as_completed</span><span class="p">(</span><span class="n">futures</span><span class="p">):</span>
+                <span class="n">og_name</span><span class="p">,</span> <span class="n">assignments</span> <span class="o">=</span> <span class="n">future</span><span class="o">.</span><span class="n">result</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">assignments</span><span class="p">:</span>
+                    <span class="n">results</span><span class="p">[</span><span class="n">og_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">assignments</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">gene_layer_assignments</span> <span class="o">=</span> <span class="p">{</span><span class="n">og</span><span class="p">:</span> <span class="n">results</span><span class="p">[</span><span class="n">og</span><span class="p">]</span> <span class="k">for</span> <span class="n">og</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">results</span><span class="p">)}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fill_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">cell_offset</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">offset</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">species</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="p">:</span>
+            <span class="n">cell_offset</span><span class="p">[</span><span class="n">species</span><span class="p">]</span> <span class="o">=</span> <span class="n">offset</span>
+            <span class="n">offset</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">samplesizes</span><span class="p">[</span><span class="n">species</span><span class="p">]</span>
+
+        <span class="n">total_cells</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">samplesizes</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">gene_idx_lookup</span> <span class="o">=</span> <span class="p">{</span><span class="n">s</span><span class="p">:</span> <span class="p">{</span><span class="n">g</span><span class="p">:</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">g</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gene_names</span><span class="p">[</span><span class="n">s</span><span class="p">])}</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="p">}</span>
+
+        <span class="n">row_labels</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">vals</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[]</span>
+        <span class="n">current_row</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">row_metadata_list</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">og_name</span><span class="p">,</span> <span class="n">assignments</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">gene_layer_assignments</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">layers</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">gene</span><span class="p">,</span> <span class="n">z</span> <span class="ow">in</span> <span class="n">assignments</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">layers</span><span class="p">[</span><span class="n">z</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">gene</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">z</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">layers</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                <span class="n">layer_genes</span> <span class="o">=</span> <span class="n">layers</span><span class="p">[</span><span class="n">z</span><span class="p">]</span>
+                <span class="n">formatted_genes_for_row</span> <span class="o">=</span> <span class="p">[]</span>
+
+                <span class="k">for</span> <span class="n">species</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="p">:</span>
+                    <span class="n">sp_genes</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">g</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">layer_genes</span> <span class="k">if</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">gene_idx_lookup</span><span class="p">[</span><span class="n">species</span><span class="p">])</span>
+
+                    <span class="k">if</span> <span class="n">sp_genes</span><span class="p">:</span>
+                        <span class="n">gene</span> <span class="o">=</span> <span class="n">sp_genes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                        <span class="n">formatted_genes_for_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">gene</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                        <span class="n">g_idx</span> <span class="o">=</span> <span class="n">gene_idx_lookup</span><span class="p">[</span><span class="n">species</span><span class="p">][</span><span class="n">gene</span><span class="p">]</span>
+                        <span class="n">x_offset</span> <span class="o">=</span> <span class="n">cell_offset</span><span class="p">[</span><span class="n">species</span><span class="p">]</span>
+
+                        <span class="n">sparse_col</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">matrices</span><span class="p">[</span><span class="n">species</span><span class="p">][:,</span> <span class="n">g_idx</span><span class="p">]</span><span class="o">.</span><span class="n">tocoo</span><span class="p">()</span>
+                        <span class="n">rows</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">current_row</span><span class="p">]</span> <span class="o">*</span> <span class="n">sparse_col</span><span class="o">.</span><span class="n">nnz</span><span class="p">)</span>
+                        <span class="n">cols</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">sparse_col</span><span class="o">.</span><span class="n">row</span> <span class="o">+</span> <span class="n">x_offset</span><span class="p">)</span>
+                        <span class="n">vals</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">sparse_col</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">formatted_genes_for_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">:NA&quot;</span><span class="p">)</span>
+
+                <span class="n">row_label</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">og_name</span><span class="si">}</span><span class="s2">_rank</span><span class="si">{</span><span class="n">z</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">row_labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row_label</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">row_metadata_list</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s2">&quot;row_id&quot;</span><span class="p">:</span> <span class="n">row_label</span><span class="p">,</span>
+                    <span class="s2">&quot;orthogroup&quot;</span><span class="p">:</span> <span class="n">og_name</span><span class="p">,</span>
+                    <span class="s2">&quot;rank&quot;</span><span class="p">:</span> <span class="n">z</span><span class="p">,</span>
+                    <span class="s2">&quot;genes&quot;</span><span class="p">:</span> <span class="s2">&quot;;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">formatted_genes_for_row</span><span class="p">)</span>
+                <span class="p">})</span>
+                <span class="n">current_row</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="n">vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">vals</span><span class="o">.</span><span class="n">size</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span><span class="n">vals</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span><span class="n">vals</span><span class="p">)):</span>
+            <span class="n">vals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+            <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int32</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">vals</span> <span class="o">=</span> <span class="n">vals</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="s2">&quot;Assembled matrix is not integer-valued; writing matrix.mtx as float. &quot;</span>
+                <span class="s2">&quot;It is not usable as an NB response.&quot;</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">final_matrix</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">csr_matrix</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">vals</span><span class="p">,</span> <span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">)),</span>
+            <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">current_row</span><span class="p">,</span> <span class="n">total_cells</span><span class="p">),</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">matrix_row_labels</span> <span class="o">=</span> <span class="n">row_labels</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">matrix_total_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">final_matrix</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">genome_total_counts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">total_counts</span><span class="p">[</span><span class="n">s</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="p">])</span>
+        <span class="n">retained</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">matrix_total_counts</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">genome_total_counts</span><span class="o">.</span><span class="n">sum</span><span class="p">(),</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">current_row</span><span class="si">}</span><span class="s2"> rows x </span><span class="si">{</span><span class="n">total_cells</span><span class="si">}</span><span class="s2"> cells; &quot;</span>
+              <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">retained</span><span class="si">:</span><span class="s2">.1%</span><span class="si">}</span><span class="s2"> of total counts retained in orthogroup layers&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_normalise_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Depth-scale the assembled matrix. Kept as a separate matrix rather than</span>
+<span class="sd">        replacing the raw one, because the NB GAM needs the counts and the offset,</span>
+<span class="sd">        not pre-scaled values.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalise_by</span> <span class="o">==</span> <span class="s2">&quot;matrix&quot;</span><span class="p">:</span>
+            <span class="n">denom</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">matrix_total_counts</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">denom</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">genome_total_counts</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+        <span class="n">n_zero</span> <span class="o">=</span> <span class="nb">int</span><span class="p">((</span><span class="n">denom</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">n_zero</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">n_zero</span><span class="si">}</span><span class="s2"> cells have a zero denominator under normalise_by=&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">normalise_by</span><span class="si">}</span><span class="s2">&#39;; their normalised column is left at zero.&quot;</span><span class="p">,</span>
+                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">inv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">denom</span><span class="p">)</span>
+        <span class="n">nz</span> <span class="o">=</span> <span class="n">denom</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="n">inv</span><span class="p">[</span><span class="n">nz</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale_factor</span> <span class="o">/</span> <span class="n">denom</span><span class="p">[</span><span class="n">nz</span><span class="p">]</span>
+
+        <span class="n">norm</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">final_matrix</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span> <span class="o">@</span> <span class="n">sp</span><span class="o">.</span><span class="n">diags</span><span class="p">(</span><span class="n">inv</span><span class="p">))</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">log1p</span><span class="p">:</span>
+            <span class="n">norm</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log1p</span><span class="p">(</span><span class="n">norm</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">normalised_matrix</span> <span class="o">=</span> <span class="n">norm</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_save</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">sio</span><span class="o">.</span><span class="n">mmwrite</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="s2">&quot;matrix.mtx&quot;</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">final_matrix</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalise</span> <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;normalised_matrix&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sio</span><span class="o">.</span><span class="n">mmwrite</span><span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="s2">&quot;matrix_normalised.mtx&quot;</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">normalised_matrix</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">col_meta_records</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">species</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="p">:</span>
+            <span class="n">ann</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">annotations</span><span class="p">[</span><span class="n">species</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">bc</span><span class="p">,</span> <span class="n">cell_type</span> <span class="ow">in</span> <span class="n">ann</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">col_meta_records</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s2">&quot;cell_id&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">species</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">bc</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;species&quot;</span><span class="p">:</span> <span class="n">species</span><span class="p">,</span>
+                    <span class="s2">&quot;cell_type&quot;</span><span class="p">:</span> <span class="n">cell_type</span>
+                <span class="p">})</span>
+
+        <span class="n">col_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">col_meta_records</span><span class="p">)</span>
+
+        <span class="n">col_df</span><span class="p">[</span><span class="s2">&quot;total_counts_matrix&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">matrix_total_counts</span>
+        <span class="n">col_df</span><span class="p">[</span><span class="s2">&quot;total_counts_genome&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">genome_total_counts</span>
+        <span class="n">col_df</span><span class="p">[</span><span class="s2">&quot;n_features_detected&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">final_matrix</span><span class="o">.</span><span class="n">tocsc</span><span class="p">()</span><span class="o">.</span><span class="n">indptr</span><span class="p">)</span>
+        <span class="n">col_df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="s2">&quot;metadata.txt&quot;</span><span class="p">),</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="n">row_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">row_metadata_list</span><span class="p">)</span>
+
+        <span class="n">row_df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="s2">&quot;rowmetadata.csv&quot;</span><span class="p">),</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">col_df</span><span class="p">[</span><span class="s2">&quot;cell_id&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="s2">&quot;barcodes.tsv&quot;</span><span class="p">),</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span>
+        <span class="p">)</span>
+        <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">matrix_row_labels</span><span class="p">)</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="s2">&quot;features.tsv&quot;</span><span class="p">),</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span>
+        <span class="p">)</span>
+
+        <span class="n">manifest</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;matrix_raw&quot;</span><span class="p">:</span> <span class="s2">&quot;matrix.mtx&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;matrix_normalised&quot;</span><span class="p">:</span> <span class="s2">&quot;matrix_normalised.mtx&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalise</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;counts_layer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">counts_layer</span><span class="p">,</span>
+            <span class="s2">&quot;counts_are_integer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">counts_are_integer</span><span class="p">,</span>
+            <span class="s2">&quot;normalise&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalise</span><span class="p">,</span>
+            <span class="s2">&quot;scale_factor&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale_factor</span><span class="p">,</span>
+            <span class="s2">&quot;log1p&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">log1p</span><span class="p">,</span>
+            <span class="s2">&quot;normalise_by&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalise_by</span><span class="p">,</span>
+            <span class="s2">&quot;layer_means_on&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer_means_on</span><span class="p">,</span>
+            <span class="s2">&quot;species&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">species</span><span class="p">,</span>
+            <span class="s2">&quot;n_rows&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">matrix_row_labels</span><span class="p">),</span>
+            <span class="s2">&quot;n_cells&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">col_meta_records</span><span class="p">),</span>
+            <span class="s2">&quot;note&quot;</span><span class="p">:</span> <span class="s2">&quot;Use matrix.mtx with offset(log(total_counts_matrix)) for NB GAMs. &quot;</span>
+                    <span class="s2">&quot;matrix_normalised.mtx is already depth-corrected; do not add an offset.&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_dir</span><span class="p">,</span> <span class="s2">&quot;normalisation.json&quot;</span><span class="p">),</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">manifest</span><span class="p">,</span> <span class="n">fh</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saved </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">matrix_row_labels</span><span class="p">)</span><span class="si">}</span><span class="s2"> rows and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">col_meta_records</span><span class="p">)</span><span class="si">}</span><span class="s2"> cells.&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Metadata generated: metadata.txt, rowmetadata.csv, normalisation.json&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalise</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Matrices: matrix.mtx (raw counts), matrix_normalised.mtx (scaled)&quot;</span><span class="p">)</span></div>
+
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Alicia Petrany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
