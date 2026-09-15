@@ -11,55 +11,89 @@
 </head>
 <body>
 
-  <header>
-    <h1>Alicia Petrany</h1>
-    <p class="affiliation">University Of Melbourne, School Of Biosciences</p>
-    <p class="overview">
-      Here are some of my projects :) I am going to fix this website page I promise
-    </p>
+  <canvas id="umap-underlay"></canvas>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <h1>Alicia Petrany</h1>
+      <p class="affiliation">2nd year PhD candidate at The University Of Melbourne, School of Biosciences</p>
+      <div class="dna-helix-wrap">
+        <div class="dna-helix" id="dna-helix" aria-hidden="true"></div>
+      </div>
+    </div>
   </header>
 
-  <div class="dna-helix-wrap">
-    <div class="dna-helix" id="dna-helix" aria-hidden="true"></div>
-  </div>
+  <main class="page-wrap">
 
-  <nav class="tabs" role="tablist">
-    <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="panel-projects" data-tab="projects">Projects</button>
-    <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-publications" data-tab="publications">IDK</button>
-  </nav>
+    <div class="content-card overview-card">
+      <p class="overview">
+        Here are some of my projects :)
+      </p>
+    </div>
 
-  <section id="panel-projects" class="tab-panel active" role="tabpanel">
-    <ul class="entry-list">
-      <li class="entry">
-        <h3>CSHint</h3>
-        <p>A tool for cross-species integration of scRNA-seq data</p>
-        <div class="entry-links">
-          <a href="https://github.com/aliciapetrany/CSHint" target="_blank">GitHub</a>
-          <a href="CSHint_Docs/index.html">Documentation</a>
-        </div>
-      </li>
-    </ul>
-  </section>
+    <div class="content-card">
+      <nav class="tabs" role="tablist">
+        <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="panel-packages" data-tab="packages">Packages</button>
+        <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-projects" data-tab="projects">Projects</button>
+        <button class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-publications" data-tab="publications">Publications</button>
+      </nav>
 
-  <section id="panel-publications" class="tab-panel" role="tabpanel" hidden>
-    <ul class="entry-list">
-      <li class="entry">
-        <h3>Publication Title</h3>
-        <p>Authors, Journal, Year.</p>
-        <div class="entry-links">
-          <a href="#" target="_blank">GitHub</a>
-          <a href="docs/publication.html">Documentation</a>
-        </div>
-      </li>
-    </ul>
-  </section>
+      <section id="panel-packages" class="tab-panel active" role="tabpanel">
+        <ul class="entry-list">
+          <li class="entry">
+            <h3>CSHint (Python)</h3>
+            <p>A tool for cross-species integration of scRNA-seq data</p>
+            <div class="entry-links">
+              <a href="https://github.com/aliciapetrany/CSHint" target="_blank">GitHub</a>
+              <a href="CSHint_Docs/index.html">Documentation</a>
+            </div>
+          </li>
+          <li class="entry">
+            <h3>CSHintR (R)</h3>
+            <p>An R wrapper for CSHint</p>
+            <div class="entry-links">
+              <a href="https://github.com/aliciapetrany/CSHint/CSHintR" target="_blank">GitHub</a>
+              <a href="">Documentation</a>
+            </div>
+          </li>
+          <li class="entry">
+            <h3>DEGage (R) </h3>
+            <p>A statistical differential expression algorithm for scRNA-seq data using a difference of two negative binomial distributions</p>
+            <div class="entry-links">
+              <a href="https://github.com/chenyongrowan/DEGage" target="_blank">GitHub</a>
+              <a href="https://rpubs.com/aliciaprowan/1043456">Documentation</a>
+            </div>
+          </li>
+        </ul>
+      </section>
 
-  <section id="panel-third" class="tab-panel" role="tabpanel" hidden>
-    <p>Content coming soon.</p>
-  </section>
+      <section id="panel-projects" class="tab-panel" role="tabpanel" hidden>
+       
+      </section>
+
+      <section id="panel-publications" class="tab-panel" role="tabpanel" hidden>
+        <li class="entry">
+            <h3>Theoretical framework for the difference of two negative binomial distributions and its application in comparative analysis of sequencing data</h3>
+            <p>Petrany et. al, 2024</p>
+            <div class="entry-links">
+              <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC11529838/" target="_blank">See Paper</a>
+            </div>
+          </li>
+          <li class="entry">
+            <h3>Attention-Guided Dynamic Re-Parameterization for Enhancing Multi-Scale Feature Fusion in Convolutional Neural Networks</h3>
+            <p>Wang et. al, 2025</p>
+            <div class="entry-links">
+              <a href="https://ieeexplore.ieee.org/document/11219017" target="_blank">See Paper</a>
+            </div>
+          </li>
+      </section>
+    </div>
+
+  </main>
 
   <script src="buttons.js"></script>
   <script src="helix.js"></script>
+  <script src="underlay.js"></script>
 
 </body>
 </html>
