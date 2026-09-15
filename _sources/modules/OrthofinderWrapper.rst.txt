@@ -1,7 +1,0 @@
-OrthoFinder wrapper
-===================
-
-.. automodule:: OrthofinderWrapper
-   :members:
-   :undoc-members:
-   :show-inheritance:

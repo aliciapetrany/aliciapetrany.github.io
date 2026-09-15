@@ -1,7 +1,0 @@
-Preprocessing
-=============
-
-.. automodule:: CSHint_preprocess
-   :members:
-   :undoc-members:
-   :show-inheritance:
